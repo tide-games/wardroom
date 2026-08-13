@@ -4,7 +4,7 @@
 officers' mess.
 
 A six-handed **no-limit Texas hold'em sit & go**: you and five of the ship's
-characters, 10,000 chips each, blinds climbing every 8 hands through a
+characters, 1,500 chips each (~75 big blinds), blinds climbing every 8 hands through a
 15-level schedule, last sailor holding chips takes the pennant.
 
 ## The table
@@ -18,9 +18,11 @@ characters, 10,000 chips each, blinds climbing every 8 hands through a
 | 🐧 **Ensign Puffin** | all sail, no anchor |
 
 Each bot plays its printed nature: Chen-formula preflop charts, Monte-Carlo
-equity against pot odds postflop, push/fold under ten big blinds — and every
-decision is made from the bot's **own two cards only** (the per-seat view in
-`seatView()`), never from yours.
+equity against pot odds postflop, push/fold under ten big blinds. Bots decide
+from the per-seat view (`seatView()`), which hides every other seat's cards —
+a discipline enforced at the call site and pinned by the view-privacy tests,
+though bots and deck do share the page: structural isolation (a Worker fed
+only the serialized view) is on the list.
 
 ## A real engine
 
@@ -51,13 +53,24 @@ outlasts the maniac).
 
 ## Fairness, honestly
 
-Every shuffle is seeded: hand seeds derive from the tournament seed
-(`sha256(tourneySeed|hand|N)`), each hand's seed is printed in the hand
-history as it completes, and the same seed + the same actions replays the same
-hand from [the source](poker.js). This is a practice room against bots that
-run in your own browser — play chips, nothing staked. **Multi-user is the next
-voyage**: the engine already speaks per-seat views and serializable actions,
-which is exactly the seam remote players plug into.
+Every shuffle is **committed before it's dealt**: the hand history prints
+`sha256(seed)` at the deal and reveals the seed only when the hand ends, so
+anyone can check the deck was fixed before a single card was seen. Hand seeds
+derive from the tournament seed (`sha256(tourneySeed|hand|N)`), which is
+itself committed at the start and revealed when the tournament ends; the same
+seed + the same actions replays the same hand from [the source](poker.js).
+
+Said plainly, like [the Jack](https://github.com/tide-games/jack) says it:
+this is a **client-side practice room** — the deck, the dealer, and the bots
+all run in your own browser, so a determined player can always read their own
+machine's memory. The commitment scheme keeps the honest game honest; it does
+not make staked play defensible. Sealed stakes would need a server-side
+dealer and the stake-witnessing rule of
+[tideholm #154](https://github.com/melvincarvalho/tideholm/issues/154) —
+that's the bar, and this room hasn't met it yet. Multi-user needs a
+deck-secrecy design first (who shuffles, who holds the deck mid-hand); the
+per-seat views and serializable actions are the seam it will plug into, not
+the whole answer.
 
 A [tide-games](https://tide-games.github.io/) boat, built in the fleet
 playbook: one owner, ten critic rounds, everything gh-pages.

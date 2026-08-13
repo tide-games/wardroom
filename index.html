@@ -260,8 +260,10 @@ body{
   <div class="roster" id="roster"></div>
   <p class="soft">The engine underneath is the real thing — exact side pots,
   the full min-raise law (under-raise all-ins don't reopen the betting), and
-  heads-up button rules. Every shuffle is seeded and logged: open the hand
-  history to see each hand's seed and replay the deal yourself from
+  heads-up button rules. Every shuffle is <b>committed before it's dealt</b>:
+  the hand history shows sha256(seed) at the deal and reveals the seed only
+  when the hand ends, so you can check the deck was fixed before any card was
+  seen — and replay it from
   <a href="https://github.com/tide-games/wardroom">the source</a>.</p>
   <p class="soft">Bots see only their own two cards — they decide from the same
   per-seat view a remote player would get, which is the seam where multiplayer
@@ -307,6 +309,11 @@ function blip(freq, dur = .06, gain = .05, type = 'triangle') {
     o.start(); o.stop(ac.currentTime + dur);
   } catch { /* no audio */ }
 }
+function unlockAudio() {
+  try { ac = ac || new AC(); if (ac.state === 'suspended') ac.resume(); } catch { /* no audio */ }
+}
+document.addEventListener('pointerdown', unlockAudio, { once: false });
+document.addEventListener('keydown', unlockAudio, { once: false });
 const sCard = () => blip(220 + Math.random() * 60, .05, .03, 'square');
 const sChip = () => { blip(1400, .03, .04); setTimeout(() => blip(1150, .04, .03), 30); };
 const sWin = () => { blip(523, .12, .06); setTimeout(() => blip(659, .12, .06), 110); setTimeout(() => blip(784, .2, .07), 220); };
@@ -375,7 +382,7 @@ let SPEED = 1;
 const NAMES = [...ROSTER.map((r) => r.name), 'You'];
 const PROFS = [...ROSTER.map((r) => r.profile), null];
 const AVAS = [...ROSTER.map((r) => r.emoji), '⚓'];
-let t = null, h = null, tourneySeed = null, heroOut = false, running = false;
+let t = null, h = null, tourneySeed = null, heroOut = false, running = false, abortRun = false;
 let heroResolve = null;
 
 function newSeed() {
@@ -516,11 +523,12 @@ const ACT_WORDS = { fold: 'folds', check: 'checks', call: 'calls', bet: 'bets', 
 async function playHand() {
   renderTop();
   const seed = await sha256hex(`${tourneySeed}|hand|${t.handIndex}`);
+  const commit = await sha256hex(seed);
   h = tourneyHand(t, seed);
   $('#verdict').textContent = '';
   $('#board').innerHTML = '';
   logLine(`<span class="hand-head">Hand #${t.handIndex + 1} — level ${levelNum(t)} (${levelOf(t).sb}/${levelOf(t).bb})</span>`);
-  logLine(`<span class="seed">seed ${seed}</span>`);
+  logLine(`<span class="seed">shuffle committed: sha256(seed) = ${commit}</span>`);
   renderHand();
   status('');
   await sleep(500);
@@ -583,11 +591,12 @@ async function playHand() {
     await sleep(1400);
   }
 
+  logLine(`<span class="seed">seed revealed: ${seed} (hash it — it matches the commitment above)</span>`);
   const { busted } = absorbHand(t, h);
   for (const b of busted) {
     const place = 6 - t.eliminated.indexOf(b);
     await banner(`${NAMES[b]} is out`, ordinal(place) + ' place', 1600);
-    if (b === HERO) heroOut = true;
+    if (b === HERO) { heroOut = true; offerExit(place); }
   }
   renderHand(true);
 }
@@ -599,14 +608,31 @@ function highlightWin(seat) {
 }
 const ordinal = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
 
+function offerExit(place) {
+  clearActions();
+  const wrap = document.createElement('div'); wrap.className = 'grp';
+  const note = document.createElement('span');
+  note.style.cssText = 'color:var(--ink-soft);font-size:13px;font-weight:600;margin-right:6px';
+  note.textContent = `${ordinal(place)} place — `;
+  const bWatch = document.createElement('button'); bWatch.className = 'qbtn';
+  bWatch.textContent = '▶▶ watch the finish';
+  const bDeal = document.createElement('button'); bDeal.id = 'b-call';
+  bDeal.textContent = 'DEAL A NEW TOURNAMENT';
+  bWatch.addEventListener('click', () => { clearActions(); });
+  bDeal.addEventListener('click', () => { abortRun = true; clearActions(); status('finishing this hand…'); });
+  wrap.append(note, bWatch, bDeal);
+  actionsEl.appendChild(wrap);
+}
+
 // ---------------- the tournament loop
 async function runTourney() {
-  running = true; heroOut = false;
+  running = true; heroOut = false; abortRun = false;
   tourneySeed = newSeed();
   t = newTourney({ names: NAMES, handsPerLevel: 8 });
   renderStatic(); renderTop();
   logBody.innerHTML = '';
-  logLine(`<span class="seed">tournament seed ${tourneySeed}</span>`);
+  logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
+  logLine(`<span class="seed">hand seeds derive as sha256(tournamentSeed|hand|N) — the tournament seed is revealed when it ends</span>`);
   await banner('THE WARDROOM', 'six-handed sit & go — blinds rise every 8 hands', 2000);
   let lastLevel = 1;
   while (t.champion === null) {
@@ -617,8 +643,10 @@ async function runTourney() {
     }
     if (heroOut && SPEED < 4) { SPEED = 4; $('#b-speed').textContent = '4×'; }
     await playHand();
+    if (abortRun) { status(''); runTourney(); return; }
   }
-  // trophy
+  // trophy — and open the books
+  logLine(`<span class="seed">tournament seed revealed: ${tourneySeed}</span>`);
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
   $('#trophy-title').textContent = t.champion === HERO ? 'You take the pennant!' : `${NAMES[t.champion]} takes the pennant`;

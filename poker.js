@@ -425,7 +425,7 @@ export const LEVELS = [
   { sb: 400, bb: 800, ante: 80 }, { sb: 500, bb: 1000, ante: 100 }, { sb: 700, bb: 1400, ante: 140 },
   { sb: 1000, bb: 2000, ante: 200 }, { sb: 1500, bb: 3000, ante: 300 }, { sb: 2000, bb: 4000, ante: 400 },
 ];
-export const START_STACK = 10000;
+export const START_STACK = 1500;   // ~75bb at 10/20 — a 15-20 minute arc, not a marathon
 
 export function newTourney({ names, handsPerLevel = 8 }) {
   return {
