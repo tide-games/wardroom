@@ -274,6 +274,7 @@ body{
     <button id="b-level" title="Ladder level (heads-up)" style="display:none">Lv 1</button>
     <button id="b-rating" title="Your ladder rating" style="display:none">⚡ —</button>
     <button id="b-chart" title="The chart room — your decisions vs the trained mix" style="display:none">📋</button>
+    <button id="b-coach" title="Coach mode: show the trained mix on every decision (coached decisions don't count toward accuracy)" style="display:none">🎓</button>
     <button id="b-speed" title="Playback speed">1×</button>
     <button id="b-sound" title="Sound">🔊</button>
     <button id="b-log" title="Hand history">☰ log</button>
@@ -587,6 +588,7 @@ let ladderTable = null, ladderMeta = null, ladderLoading = false;
 let rating = freshRating();
 try { rating = Object.assign(freshRating(), JSON.parse(localStorage.getItem('wr.rating') || '{}')); } catch { /* fresh */ }
 let matchGrades = [];                 // this match's graded hero decisions
+let coachMode = localStorage.getItem('wr.coach') === '1';
 function gradeTag(pChosen, pMax) {
   const ratio = pMax > 0 ? pChosen / pMax : 1;
   if (ratio >= 0.7 || pChosen >= 0.35) return ['📖', 'book'];
@@ -713,7 +715,15 @@ function heroTurn(L) {
   hintedThisDecision = false;
   const view = seatView(h, HERO);
   const wrap = document.createElement('div'); wrap.className = 'grp';
-  if (mode === 'hu' && level >= 2 && ladderTable && h.limit) {
+  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && coachMode) {
+    const mix = tableMix(h, HERO, L, ladderTable);
+    if (mix.known) {
+      hintedThisDecision = true;
+      const words = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`);
+      $('#hintbar').textContent = '🎓 ' + words.join(' · ');
+    }
+  }
+  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && !coachMode) {
     const bHint = document.createElement('button'); bHint.className = 'qbtn'; bHint.textContent = '💡';
     bHint.title = 'Show the trained mix for this spot (hinted decisions are flagged and not counted in accuracy)';
     bHint.addEventListener('click', () => {
@@ -1141,6 +1151,8 @@ async function runTourney() {
   const trainer = mode === 'hu' && level >= 2;
   $('#b-rating').style.display = trainer ? '' : 'none';
   $('#b-chart').style.display = trainer ? '' : 'none';
+  $('#b-coach').style.display = trainer ? '' : 'none';
+  $('#b-coach').classList.toggle('on', coachMode);
   renderRatingChip();
   matchGrades = [];
   renderStatic(); renderTop();
@@ -1195,6 +1207,12 @@ $('#b-level').addEventListener('click', () => {
   $('#b-level').textContent = 'Lv ' + level;
   if (running) { abortRun = true; status(`finishing this hand — then level ${level}…`); }
   else runTourney();
+});
+$('#b-coach').addEventListener('click', () => {
+  coachMode = !coachMode;
+  localStorage.setItem('wr.coach', coachMode ? '1' : '0');
+  $('#b-coach').classList.toggle('on', coachMode);
+  $('#hintbar').textContent = coachMode ? '🎓 coach mode on — the mix shows on every decision (accuracy paused)' : '';
 });
 $('#b-chart').addEventListener('click', () => {
   const graded = matchGrades.filter((g) => !g.hinted);
