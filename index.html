@@ -184,6 +184,11 @@ body{
 .seat.hero .cards .card .r{font-size:calc(var(--cw)*.92*.42)}
 .seat.hero .cards .card .s{font-size:calc(var(--cw)*.92*.40)}
 /* ---------------- action bar ---------------- */
+#hintbar{
+  flex:none;text-align:center;font-size:14px;font-weight:700;color:var(--gold);
+  min-height:20px;padding:2px 12px;text-shadow:0 1px 3px #000;
+}
+#hintbar:empty{min-height:0;padding:0}
 #actions{
   flex:none;display:flex;align-items:center;justify-content:center;gap:10px;
   padding:10px 14px calc(12px + env(safe-area-inset-bottom));min-height:76px;
@@ -290,6 +295,7 @@ body{
   <div id="banner"><div class="big"></div><div class="small"></div></div>
   <div id="log"><h3>HAND HISTORY</h3><div id="logbody"></div></div>
 </div>
+<div id="hintbar"></div>
 <div id="actions"></div>
 
 <div class="modal-wrap" id="m-help"><div class="modal">
@@ -700,7 +706,7 @@ function logLine(html) {
 
 // ---------------- the action bar
 const actionsEl = $('#actions');
-function clearActions() { actionsEl.innerHTML = ''; }
+function clearActions() { actionsEl.innerHTML = ''; $('#hintbar').textContent = ''; }
 let hintedThisDecision = false;
 function heroTurn(L) {
   clearActions();
@@ -712,10 +718,10 @@ function heroTurn(L) {
     bHint.title = 'Show the trained mix for this spot (hinted decisions are flagged and not counted in accuracy)';
     bHint.addEventListener('click', () => {
       const mix = tableMix(h, HERO, L, ladderTable);
-      if (!mix.known) { status('the chart has no line for this spot'); return; }
+      if (!mix.known) { $('#hintbar').textContent = 'the chart has no line for this spot'; return; }
       hintedThisDecision = true;
       const words = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`);
-      status('💡 chart: ' + words.join(' · '));
+      $('#hintbar').textContent = '💡 chart: ' + words.join(' · ');
       bHint.disabled = true;
     });
     wrap.appendChild(bHint);
@@ -887,7 +893,6 @@ async function playHand() {
           matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted });
           logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}</span>`);
         }
-        status('');
       }
     } else {
       await sleep(380 + Math.random() * 620);
