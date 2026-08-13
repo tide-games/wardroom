@@ -265,6 +265,7 @@ body{
     <span class="hide-s">hand <b id="t-hand">1</b></span>
   </div>
   <div class="btns">
+    <button id="b-hu" title="Switch format">⚔ 1v1</button>
     <button id="b-speed" title="Playback speed">1×</button>
     <button id="b-sound" title="Sound">🔊</button>
     <button id="b-log" title="Hand history">☰ log</button>
@@ -556,6 +557,7 @@ const NAMES = [...ROSTER.map((r) => r.name), 'You'];
 const PROFS = [...ROSTER.map((r) => r.profile), null];
 const AVAS = [...ROSTER.map((r) => r.emoji), '⚓'];
 let t = null, h = null, tourneySeed = null, heroOut = false, running = false, abortRun = false;
+let mode = '6max', huOpp = -1;      // 'hu' = heads-up vs one random character
 let heroResolve = null;
 
 function newSeed() {
@@ -568,6 +570,16 @@ function renderStatic() {
   for (let i = 0; i < 6; i++) {
     seatEls[i].ava.textContent = AVAS[i];
     seatEls[i].nm.textContent = NAMES[i];
+    const hidden = mode === 'hu' && i !== HERO && i !== huOpp;
+    seatEls[i].root.style.display = hidden ? 'none' : '';
+    seatEls[i].bet.style.display = hidden ? 'none' : '';
+    if (mode === 'hu' && i === huOpp) {
+      seatEls[i].root.style.left = '50%'; seatEls[i].root.style.top = '13%';
+      seatEls[i].bet.style.left = '50%'; seatEls[i].bet.style.top = '30%';
+    } else {
+      seatEls[i].root.style.left = POS[i].x + '%'; seatEls[i].root.style.top = POS[i].y + '%';
+      seatEls[i].bet.style.left = BETPOS[i].x + '%'; seatEls[i].bet.style.top = BETPOS[i].y + '%';
+    }
   }
 }
 function renderTop() {
@@ -1028,11 +1040,17 @@ async function runTourney() {
   running = true; heroOut = false; abortRun = false;
   tourneySeed = newSeed();
   t = newTourney({ names: NAMES, handsPerLevel: 8 });
+  if (mode === 'hu') {
+    huOpp = (Math.random() * 5) | 0;
+    for (let i = 0; i < 5; i++) if (i !== huOpp) t.stacks[i] = 0;
+    t.button = huOpp;                 // the button must start on a live seat
+  } else huOpp = -1;
   renderStatic(); renderTop();
   logBody.innerHTML = '';
   logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
   logLine(`<span class="seed">hand seeds derive as sha256(tournamentSeed|hand|N) — the tournament seed is revealed when it ends</span>`);
-  await banner('THE WARDROOM', 'six-handed sit & go — blinds rise every 8 hands', 2000);
+  if (mode === 'hu') await banner('HEADS-UP', `you vs ${NAMES[huOpp]} — blinds rise every 8 hands`, 2000);
+  else await banner('THE WARDROOM', 'six-handed sit & go — blinds rise every 8 hands', 2000);
   let lastLevel = 1;
   while (t.champion === null) {
     if (levelNum(t) !== lastLevel) {
@@ -1062,6 +1080,12 @@ function setSpeed(x) {
   document.documentElement.style.setProperty('--sp', x);
   $('#b-speed').textContent = x + '×';
 }
+$('#b-hu').addEventListener('click', () => {
+  mode = mode === 'hu' ? '6max' : 'hu';
+  $('#b-hu').textContent = mode === 'hu' ? '👥 6-max' : '⚔ 1v1';
+  if (running) { abortRun = true; status(mode === 'hu' ? 'finishing this hand — then heads-up…' : 'finishing this hand — then the full table…'); }
+  else runTourney();
+});
 $('#b-speed').addEventListener('click', () => {
   setSpeed(SPEED === 1 ? 2 : SPEED === 2 ? 4 : 1);
 });
