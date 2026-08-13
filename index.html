@@ -256,7 +256,25 @@ body{
 #trophy .place b{color:var(--gold)}
 @media (max-width:700px){
   #top .mid .hide-s{display:none}
-  #actions button{padding:12px 14px;font-size:13px}
+  #top{padding:5px 8px}
+  #top .brand{font-size:14px}
+  #top button{padding:4px 7px;font-size:12px}
+  #actions{min-height:54px;padding:6px 8px calc(8px + env(safe-area-inset-bottom));gap:6px}
+  #actions button{padding:11px 13px;font-size:13px}
+  #raise-ui{padding:4px 8px}
+  #hintbar{font-size:12.5px;min-height:16px}
+  .pod .cards{margin-top:3px}
+}
+/* portrait: the oval stands upright — rival at the top, you at the bottom.
+   (heads-up seats are already vertical; the trainer is the default room) */
+@media (max-width:700px) and (orientation:portrait){
+  #tablewrap{width:98%;height:98%;aspect-ratio:unset}
+  #felt{left:3%;right:3%;top:6%;bottom:9%}
+  #felt::after{top:20%;letter-spacing:.3em}
+  :root{--cw:clamp(40px,13vw,58px)}
+  .seat{width:clamp(130px,44vw,190px)}
+  #center{top:44%}
+  #status{top:60%}
 }
 </style>
 </head>
