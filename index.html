@@ -199,6 +199,13 @@ body{
   color:#fff;letter-spacing:.03em;
 }
 #actions button:disabled{opacity:.4;cursor:default}
+#actions button{position:relative}
+.pct{
+  position:absolute;top:-21px;left:50%;transform:translateX(-50%);
+  font-size:12px;font-weight:800;color:var(--gold);text-shadow:0 1px 3px #000;
+  white-space:nowrap;pointer-events:none;
+}
+.pct.zero{color:var(--ink-soft);opacity:.7}
 #b-fold{background:#8a4a3d}
 #b-call{background:#3f7d4e}
 #b-raise{background:#b08a3e}
@@ -728,18 +735,27 @@ function logLine(html) {
 const actionsEl = $('#actions');
 function clearActions() { actionsEl.innerHTML = ''; $('#hintbar').textContent = ''; }
 let hintedThisDecision = false;
+function mixOnButtons(mix) {
+  const target = { k: $('#b-call'), b: $('#b-raise'), f: $('#b-fold') };
+  mix.acts.forEach((ac, i) => {
+    const btn = target[ac];
+    if (!btn) return;
+    let p = btn.querySelector('.pct');
+    if (!p) { p = document.createElement('span'); p.className = 'pct'; btn.appendChild(p); }
+    const v = Math.round(mix.probs[i] * 100);
+    p.textContent = v + '%';
+    p.classList.toggle('zero', v === 0);
+  });
+}
 function heroTurn(L) {
   clearActions();
   hintedThisDecision = false;
   const view = seatView(h, HERO);
   const wrap = document.createElement('div'); wrap.className = 'grp';
+  let coachMix = null;
   if (mode === 'hu' && level >= 2 && ladderTable && h.limit && coachMode) {
     const mix = tableMix(h, HERO, L, ladderTable);
-    if (mix.known) {
-      hintedThisDecision = true;
-      const words = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`);
-      $('#hintbar').textContent = '🎓 ' + words.join(' · ');
-    }
+    if (mix.known) { hintedThisDecision = true; coachMix = mix; }
   }
   if (mode === 'hu' && level >= 2 && ladderTable && h.limit && !coachMode) {
     const bHint = document.createElement('button'); bHint.className = 'qbtn'; bHint.textContent = '💡';
@@ -748,8 +764,7 @@ function heroTurn(L) {
       const mix = tableMix(h, HERO, L, ladderTable);
       if (!mix.known) { $('#hintbar').textContent = 'the chart has no line for this spot'; return; }
       hintedThisDecision = true;
-      const words = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`);
-      $('#hintbar').textContent = '💡 chart: ' + words.join(' · ');
+      mixOnButtons(mix);
       bHint.disabled = true;
     });
     wrap.appendChild(bHint);
@@ -789,6 +804,7 @@ function heroTurn(L) {
     wrap.append(ui, bRaise);
   }
   actionsEl.appendChild(wrap);
+  if (coachMix) mixOnButtons(coachMix);
   return new Promise((resolve) => {
     heroResolve = resolve;
     bFold.addEventListener('click', () => { clearActions(); resolve({ seat: HERO, action: 'fold' }); });
