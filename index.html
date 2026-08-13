@@ -559,10 +559,10 @@ const NAMES = [...ROSTER.map((r) => r.name), 'You'];
 const PROFS = [...ROSTER.map((r) => r.profile), null];
 const AVAS = [...ROSTER.map((r) => r.emoji), '⚓'];
 let t = null, h = null, tourneySeed = null, heroOut = false, running = false, abortRun = false;
-let mode = '6max', huOpp = -1;      // 'hu' = heads-up vs one random character
+let mode = localStorage.getItem('wr.mode') || 'hu', huOpp = -1;   // heads-up trainer is the default room
 // the ladder: level 1 = the personality characters (no-limit); levels 2-7 =
 // fixed-limit vs the CFR-trained strategy, diluted with noise going down
-let level = Number(localStorage.getItem('wr.level') || 1);
+let level = Number(localStorage.getItem('wr.level') || 3);
 const LEVEL_EPS = { 2: .45, 3: .3, 4: .2, 5: .12, 6: .06, 7: 0 };
 let ladderTable = null, ladderMeta = null, ladderLoading = false;
 async function loadLadder() {
@@ -1122,6 +1122,7 @@ $('#b-level').addEventListener('click', () => {
 });
 $('#b-hu').addEventListener('click', () => {
   mode = mode === 'hu' ? '6max' : 'hu';
+  localStorage.setItem('wr.mode', mode);
   $('#b-hu').textContent = mode === 'hu' ? '👥 6-max' : '⚔ 1v1';
   if (running) { abortRun = true; status(mode === 'hu' ? 'finishing this hand — then heads-up…' : 'finishing this hand — then the full table…'); }
   else runTourney();
@@ -1141,6 +1142,7 @@ document.querySelectorAll('.modal-wrap .x').forEach((x) => x.addEventListener('c
 document.querySelectorAll('.modal-wrap').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); }));
 $('#b-again').addEventListener('click', () => { $('#m-trophy').classList.remove('open'); runTourney(); });
 
+$('#b-hu').textContent = mode === 'hu' ? '👥 6-max' : '⚔ 1v1';
 // roster in help
 $('#roster').innerHTML = ROSTER.map((r) => `<div><b>${r.emoji} ${r.name}</b><span>${r.blurb}</span></div>`).join('');
 
