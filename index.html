@@ -330,19 +330,18 @@ const fmt = (n) => n.toLocaleString('en-US');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms / SPEED));
 
 // ---------------- sound
-let soundOn = true;
+let soundOn = localStorage.getItem('wr.sound') !== '0';
 const AC = window.AudioContext || window.webkitAudioContext;
 let ac = null;
 function blip(freq, dur = .06, gain = .05, type = 'triangle') {
-  if (!soundOn) return;
+  if (!ready()) return;
   try {
-    ac = ac || new AC();
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = type; o.frequency.value = freq;
     g.gain.setValueAtTime(.0001, ac.currentTime);
-    g.gain.linearRampToValueAtTime(gain, ac.currentTime + .003);
+    g.gain.linearRampToValueAtTime(gain * 2.2, ac.currentTime + .003);
     g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
-    o.connect(g); g.connect(ac.destination);
+    o.connect(g); g.connect(master);
     o.start(); o.stop(ac.currentTime + dur);
   } catch { /* no audio */ }
 }
@@ -353,19 +352,88 @@ function seq(notes, gapMs, dur, gain, type = 'sine') {
 const sWinSmall = () => seq([523, 784], 90, .12, .06, 'triangle');
 const sWinBig = () => seq([523, 659, 784, 1047, 1318, 1568], 85, .3, .07);
 const sLose = () => seq([233, 174], 140, .16, .05, 'triangle');
-const sChop = () => chord([523, 659], .2, .04);
+const sChop = () => { blip(587, .09, .05, 'sine'); setTimeout(() => blip(587, .09, .05, 'sine'), 130); };
 const sVillain = () => blip(392, .12, .04, 'triangle');
-const sMuck = () => { try { ac = ac || new AC(); const b = ac.createBufferSource(), buf = ac.createBuffer(1, 2646, 44100); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * .25; b.buffer = buf; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; b.connect(f); f.connect(ac.destination); if (soundOn) b.start(); } catch { /* quiet */ } };
+const sMuck = () => { if (!ready()) return; try { const b = ac.createBufferSource(); b.buffer = noiseBuf(.06); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; const g = ac.createGain(); g.gain.value = .12; b.connect(f); f.connect(g); g.connect(master); b.start(); } catch { /* quiet */ } };
+function sAllIn() {
+  if (!ready()) return;
+  try {
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(130, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + .25);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.2, t + .005);
+    g.gain.exponentialRampToValueAtTime(.0001, t + .3);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + .32);
+    for (let i = 0; i < 5; i++) setTimeout(() => sChip(.8 - i * .1), 40 + i * 35);
+  } catch { /* quiet */ }
+}
+const sEnd = () => seq([262, 196, 262], 220, .4, .06);
 const sKnock = () => blip(140, .04, .05, 'square');
 const sBust = () => seq([262, 196, 147], 200, .28, .06);
 const sLevelUp = () => seq([440, 587], 110, .18, .05);
+let master = null;
 function unlockAudio() {
-  try { ac = ac || new AC(); if (ac.state === 'suspended') ac.resume(); } catch { /* no audio */ }
+  try {
+    ac = ac || new AC();
+    if (ac.state === 'suspended') ac.resume();
+    if (!master) {
+      master = ac.createGain(); master.gain.value = .8;
+      const comp = ac.createDynamicsCompressor();
+      comp.threshold.value = -12; comp.knee.value = 20; comp.ratio.value = 6;
+      comp.attack.value = .003; comp.release.value = .12;
+      master.connect(comp); comp.connect(ac.destination);
+    }
+  } catch { /* no audio */ }
+}
+// never schedule on a suspended context: pre-gesture sounds are dropped, not
+// queued (they would all fire at once on the first click)
+const ready = () => soundOn && ac && ac.state === 'running' && master && !document.hidden;
+function noiseBuf(dur) {
+  const buf = ac.createBuffer(1, Math.max(1, (44100 * dur) | 0), 44100);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  return buf;
 }
 document.addEventListener('pointerdown', unlockAudio, { once: false });
 document.addEventListener('keydown', unlockAudio, { once: false });
-const sCard = () => blip(220 + Math.random() * 60, .05, .03, 'square');
-const sChip = () => { blip(1400, .03, .04); setTimeout(() => blip(1150, .04, .03), 30); };
+function sCard() {
+  if (!ready()) return;
+  try {
+    const t = ac.currentTime;
+    const src = ac.createBufferSource(); src.buffer = noiseBuf(.07);
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(1200, t);
+    bp.frequency.exponentialRampToValueAtTime(3800, t + .07);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.12, t + .01);
+    g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+    src.connect(bp); bp.connect(g); g.connect(master); src.start(t);
+  } catch { /* quiet */ }
+}
+function sChip(vel = 1) {
+  if (!ready()) return;
+  try {
+    const t = ac.currentTime;
+    const src = ac.createBufferSource(); src.buffer = noiseBuf(.008);
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3000;
+    const ng = ac.createGain(); ng.gain.setValueAtTime(.2 * vel, t);
+    ng.gain.exponentialRampToValueAtTime(.0001, t + .015);
+    src.connect(hp); hp.connect(ng); ng.connect(master); src.start(t);
+    const cents = (Math.random() - .5) * 120;
+    for (const dt of [0, 11]) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle'; o.detune.value = cents + dt;
+      o.frequency.setValueAtTime(2100, t);
+      o.frequency.exponentialRampToValueAtTime(1500, t + .03);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.linearRampToValueAtTime(.1 * vel, t + .002);
+      g.gain.exponentialRampToValueAtTime(.0001, t + .06);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + .07);
+    }
+  } catch { /* quiet */ }
+}
 const sWin = () => { blip(523, .12, .06); setTimeout(() => blip(659, .12, .06), 110); setTimeout(() => blip(784, .2, .07), 220); };
 const sAlert = () => blip(330, .15, .05, 'sine');
 
@@ -690,11 +758,12 @@ async function sweepStreet(commits) {
     if (!commits[i]) continue;
     any = true;
     const from = rel(seatEls[i].bet.textContent ? seatEls[i].bet : seatEls[i].root);
-    flyDot(from, potAt, chipColor(commits[i]), k * 45);
-    setTimeout(() => { if (!document.hidden) sChip(); }, k * 45 + 300);
+    flyDot(from, potAt, chipColor(commits[i]), k * 60);
+    const vel = Math.max(.4, 1 - k * .12);
+    setTimeout(() => sChip(vel), REDUCED ? k * 30 : k * 60 + 300);
     k++;
   }
-  if (any && !REDUCED && !document.hidden) { await sleep(430 + k * 45); potPulse(); }
+  if (any && !REDUCED && !document.hidden) { await sleep(430 + k * 60); potPulse(); }
 }
 async function playHand() {
   renderTop();
@@ -754,6 +823,7 @@ async function playHand() {
     bubble(a.seat, label);
     if (a.action === 'fold') sMuck();
     else if (a.action === 'check') sKnock();
+    else if (h.seats[a.seat].allIn) sAllIn();
     else if (!streetEnded) sChip();
     logLine(`${NAMES[a.seat]} <b>${label}</b>`);
     if (streetEnded) await sweepStreet(prevCommits);
@@ -776,14 +846,22 @@ async function playHand() {
     $('#verdict').appendChild(d);
   };
 
-  // refund made visible before anything settles
+  // freeze the ending: no stack may show its post-settle total until the
+  // scene awards it (the runout must not spoil its own drama)
   const refund = h.log.find((l) => l.ev === 'refund');
+  displayOffset = {};
+  r.winners.forEach((w) => { displayOffset[w.seat] = w.amount; });
+  if (refund) displayOffset[refund.seat] = (displayOffset[refund.seat] || 0) + refund.amount;
+  potOverride = potTotal;
+  renderHand(r.showdown);
   if (refund) {
-    floater(`${fmt(refund.amount)} returned`, rel(seatEls[refund.seat].root), 'var(--ink-soft)');
+    const at = rel(seatEls[refund.seat].root);
+    floater(`${fmt(refund.amount)} returned`, { x: at.x, y: at.y - 74 }, 'var(--ink-soft)');
     logLine(`${refund.seat === HERO ? 'You get' : NAMES[refund.seat] + ' gets'} ${fmt(refund.amount)} back (uncalled)`);
     await sleep(650);
+    displayOffset[refund.seat] -= refund.amount;
+    renderHand(r.showdown);
   }
-  potOverride = potTotal;
 
   if (r.showdown) {
     const wasRunout = h.board.length > boardShown;
@@ -815,7 +893,6 @@ async function playHand() {
       cards.forEach((c) => c.classList.add(winnerSeats.has(i) ? 'win' : 'dim'));
     }
     // per-pot verdict lines, side pots first
-    displayOffset = {}; r.winners.forEach((w) => { displayOffset[w.seat] = w.amount; });
     renderHand(true);
     const pots = [...r.pots].reverse();
     for (const [pi, p] of pots.entries()) {
@@ -839,10 +916,14 @@ async function playHand() {
       for (const wSeat of p.winners) {
         const dots = Math.min(9, 3 + Math.floor(Math.log2(Math.max(2, p.amount / h.bb))));
         for (let d = 0; d < dots; d++) flyDot(potAt, rel(seatEls[wSeat].root), chipColor(share), d * 30);
-        floater('+' + fmt(p.winners.length > 1 ? share : p.amount), rel(seatEls[wSeat].root), 'var(--gold)', 350);
       }
       potOverride = Math.max(0, potOverride - p.amount);
       if (pi < pots.length - 1) await sleep(900);
+    }
+    // profit floaters: what the pile actually gains, not the pot size
+    for (const w of r.winners) {
+      const net = w.amount - h.seats[w.seat].handCommit;
+      if (net > 0) floater('+' + fmt(net), rel(seatEls[w.seat].root), 'var(--gold)', 350);
     }
     // the hero's own truth
     if (heroAtShowdown && !heroWon) {
@@ -853,12 +934,15 @@ async function playHand() {
       const bb = heroWonAmt / h.bb;
       feltWash('radial-gradient(80% 90% at 50% 40%, rgba(233,193,92,' + (bb > 40 ? '.16' : '.10') + '), transparent 75%)', bb > 12 ? 1100 : 600);
     }
-    // one sound, truthful
-    if (heroWon && r.winners.length > 1) sChop();
-    else if (heroWon) { const bb = heroWonAmt / h.bb; (bb > 40 ? sWinBig : bb >= 12 ? sWin : sWinSmall)(); }
+    // one sound, truthful — chop only if every pot the hero won was shared
+    const heroPots = r.pots.filter((p) => p.winners.includes(HERO));
+    const heroSolo = heroPots.some((p) => p.winners.length === 1);
+    if (heroWon && heroSolo) { const bb = heroWonAmt / h.bb; (bb > 40 ? sWinBig : bb >= 12 ? sWin : sWinSmall)(); }
+    else if (heroWon) sChop();
     else if (heroAtShowdown) sLose();
     else sVillain();
     for (const w of r.winners) logLine(`<b>${w.seat === HERO ? 'You win' : NAMES[w.seat] + ' wins'}</b> ${fmt(w.amount)} — ${r.evals[w.seat]?.name ?? ''}`);
+    if (heroAtShowdown && !heroWon) logLine(`<b>You lose</b> ${fmt(heroLostAmt)} — ${r.evals[HERO].name}`);
     // stacks count up as the chips land
     await sleep(400);
     for (let step = 7; step >= 0; step--) {
@@ -867,23 +951,29 @@ async function playHand() {
       await sleep(70);
     }
     displayOffset = {};
-    const holdMs = heroInvolved ? Math.max(2400 / SPEED, 1600) : 2400 / SPEED;
+    const potBB = potTotal / h.bb;
+    let holdMs;
+    if (heroAtShowdown && !heroWon) holdMs = Math.max(5000 / SPEED, 3000);
+    else if (heroWon) holdMs = Math.max((potBB > 40 ? 3600 : 2400) / SPEED, 1600);
+    else holdMs = Math.max(2400 / SPEED, potBB >= 25 ? 1600 : 700);
     await new Promise((res) => setTimeout(res, holdMs));   // wall-clock hold
   } else {
     // fold-out
     const w = r.winners[0];
     displayOffset[w.seat] = w.amount;
     renderHand();
+    const net = w.amount - h.seats[w.seat].handCommit;
     if (w.seat === HERO) {
-      vline(`You take the pot — +${fmt(w.amount)}`, 'vwin');
+      vline(`You take the ${fmt(w.amount)} pot`, 'vwin');
       sWinSmall();
     } else {
       vline(`${NAMES[w.seat]} takes ${fmt(w.amount)}`, 'vsoft');
       sMuck();
+      setTimeout(() => sVillain(), 90);
     }
     const potAt = rel($('#pot'));
     for (let d = 0; d < 4; d++) flyDot(potAt, rel(seatEls[w.seat].root), chipColor(w.amount), d * 35);
-    floater('+' + fmt(w.amount), rel(seatEls[w.seat].root), w.seat === HERO ? 'var(--gold)' : 'var(--ink-soft)', 300);
+    if (net > 0) floater('+' + fmt(net), rel(seatEls[w.seat].root), w.seat === HERO ? 'var(--gold)' : 'var(--ink-soft)', 300);
     logLine(`<b>${w.seat === HERO ? 'You win' : NAMES[w.seat] + ' wins'}</b> ${fmt(w.amount)} uncontested`);
     await sleep(450);
     potOverride = 0;
@@ -958,7 +1048,7 @@ async function runTourney() {
   logLine(`<span class="seed">tournament seed revealed: ${tourneySeed}</span>`);
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
-  if (t.champion === HERO) { sWinBig(); setTimeout(() => blip(784, .8, .05), 600); } else sVillain();
+  if (t.champion === HERO) { sWinBig(); setTimeout(() => blip(784, .8, .05), 600); } else sEnd();
   $('#trophy-title').textContent = t.champion === HERO ? 'You take the pennant!' : `${NAMES[t.champion]} takes the pennant`;
   $('#trophy-body').innerHTML = places.map((seat, i) =>
     `<div class="place"><b>${medals[i].length > 2 ? medals[i] : medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('');
@@ -977,8 +1067,10 @@ $('#b-speed').addEventListener('click', () => {
 });
 $('#b-sound').addEventListener('click', () => {
   soundOn = !soundOn;
+  localStorage.setItem('wr.sound', soundOn ? '1' : '0');
   $('#b-sound').textContent = soundOn ? '🔊' : '🔇';
 });
+$('#b-sound').textContent = soundOn ? '🔊' : '🔇';
 $('#b-log').addEventListener('click', () => $('#log').classList.toggle('open'));
 $('#b-help').addEventListener('click', () => $('#m-help').classList.add('open'));
 document.querySelectorAll('.modal-wrap .x').forEach((x) => x.addEventListener('click', () => x.closest('.modal-wrap').classList.remove('open')));
