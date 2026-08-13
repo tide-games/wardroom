@@ -229,6 +229,75 @@ const H = (...names) => names.map(C);
   ok(v2.seats[1].hole === null && v2.seats[2].hole === null, 'a fold-out reveals nothing');
 }
 
+// ---- fixed-limit: the bet is a number, not a choice
+{
+  const seed = sha256('limit-1');
+  const h = newHand({ seats: [{ name: 'A', stack: 2000 }, { name: 'B', stack: 2000 }, { name: 'C', stack: 2000 }], button: 0, sb: 10, bb: 20, seedHex: seed, limit: true });
+  const L0 = legal(h);
+  ok(L0.minRaiseTo === 40 && L0.maxRaiseTo === 40, 'limit preflop: the only raise is to exactly two bets', JSON.stringify(L0));
+  act(h, { seat: L0.seat, action: 'raise', amount: 40 });
+  const L1 = legal(h);
+  ok(L1.minRaiseTo === 60 && L1.maxRaiseTo === 60, 'limit re-raise: exactly three bets');
+  act(h, { seat: L1.seat, action: 'raise', amount: 60 });
+  const L2 = legal(h);
+  ok(L2.minRaiseTo === 80, 'limit cap approaching: four bets');
+  act(h, { seat: L2.seat, action: 'raise', amount: 80 });
+  const L3 = legal(h);
+  ok(!L3.actions.includes('raise'), 'the street is capped at four bets — no fifth raise', JSON.stringify(L3.actions));
+  act(h, { seat: L3.seat, action: 'call' });
+  while (legal(h) && legal(h).callAmount > 0) act(h, { seat: legal(h).seat, action: 'call' });
+  if (h.street === 0) act(h, { seat: legal(h).seat, action: 'check' });
+  ok(h.street === 1, 'the capped street closes to the flop', h.street);
+  // flop: small bet is bb again, and betting reopens
+  const LF = legal(h);
+  ok(LF.actions.includes('check') && (LF.actions.includes('bet') ? LF.minRaiseTo - h.seats[LF.seat].streetCommit === 20 || LF.minRaiseTo === 20 : true),
+    'flop small bet is one bb', JSON.stringify(LF));
+  if (LF.actions.includes('bet')) {
+    act(h, { seat: LF.seat, action: 'bet', amount: LF.minRaiseTo });
+    ok(h.currentBet === 20, 'flop bet lands at exactly one small bet');
+  }
+}
+{
+  // turn and river bets double
+  const seed = sha256('limit-2');
+  const h = newHand({ seats: [{ name: 'A', stack: 2000 }, { name: 'B', stack: 2000 }], button: 0, sb: 10, bb: 20, seedHex: seed, limit: true });
+  act(h, { seat: legal(h).seat, action: 'call' });
+  act(h, { seat: legal(h).seat, action: 'check' });
+  act(h, { seat: legal(h).seat, action: 'check' });   // flop checks through
+  act(h, { seat: legal(h).seat, action: 'check' });
+  ok(h.street === 2, 'reached the turn');
+  const LT = legal(h);
+  ok(LT.minRaiseTo === 40 && LT.maxRaiseTo === 40, 'turn big bet is two bb', JSON.stringify(LT));
+  act(h, { seat: LT.seat, action: 'bet', amount: 40 });
+  const LT2 = legal(h);
+  ok(LT2.minRaiseTo === 80, 'turn raise is to two big bets');
+}
+{
+  // limit fuzz: chips conserve, engine never wedges, raises always fixed-size
+  let done = 0, conserved = true, wedged = false, sized = true;
+  for (let i = 0; i < 150; i++) {
+    const seed = sha256('limitfuzz' + i);
+    const rng = rngFromSeed(sha256('limitfuzzdrv' + i));
+    const stacks = [300 + ((rng() * 1500) | 0), 300 + ((rng() * 1500) | 0), 300 + ((rng() * 1500) | 0), 300 + ((rng() * 1500) | 0)];
+    const before = stacks.reduce((a, b) => a + b, 0);
+    const h = newHand({ seats: stacks.map((s, k) => ({ name: 'P' + k, stack: s })), button: (rng() * 4) | 0, sb: 10, bb: 20, seedHex: seed, limit: true });
+    let guard = 0;
+    while (h.phase === 'act' && guard++ < 200) {
+      const L = legal(h);
+      if ((L.actions.includes('bet') || L.actions.includes('raise')) && L.minRaiseTo !== L.maxRaiseTo) { sized = false; break; }
+      const pick = L.actions[(rng() * L.actions.length) | 0];
+      if (pick === 'bet' || pick === 'raise') act(h, { seat: L.seat, action: pick, amount: L.minRaiseTo });
+      else act(h, { seat: L.seat, action: pick });
+    }
+    if (h.phase !== 'done') { wedged = true; break; }
+    const after = h.seats.reduce((a, s) => a + s.stack, 0);
+    if (after !== before) { conserved = false; break; }
+    done++;
+  }
+  ok(sized, 'limit raises are always a single fixed amount');
+  ok(!wedged && conserved && done === 150, `limit fuzz: ${done} hands conserve and complete`);
+}
+
 // ---- tournament arithmetic
 {
   const t = newTourney({ names: ['A', 'B', 'C', 'D', 'E', 'F'], handsPerLevel: 8 });

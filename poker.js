@@ -146,7 +146,10 @@ export const STREETS = ['preflop', 'flop', 'turn', 'river'];
 
 // seats: [{stack, name}] — stack 0 seats are out and skipped.
 // Returns a hand state h. Drive with legal(h) + act(h, {seat, action, amount}).
-export function newHand({ seats, button, sb, bb, ante = 0, seedHex }) {
+// limit: true = fixed-limit — bets come in fixed units (bb on preflop/flop,
+// 2×bb on turn/river) with a 4-bet cap per street (the big blind counts as
+// the first bet preflop, per the standard convention).
+export function newHand({ seats, button, sb, bb, ante = 0, seedHex, limit = false }) {
   const deck = shuffledDeck(seedHex);
   const n = seats.length;
   const h = {
@@ -160,6 +163,7 @@ export function newHand({ seats, button, sb, bb, ante = 0, seedHex }) {
       streetCommit: 0, handCommit: 0, canRaise: true, acted: false,
     })),
     currentBet: 0, minRaiseSize: bb,
+    limit: !!limit, limitCap: 4, streetRaises: limit ? 1 : 0,
     toAct: -1, phase: 'act',      // act | done
     log: [], result: null,
   };
@@ -213,16 +217,24 @@ function nextActor(h, from) {
 }
 function liveSeats(h) { return h.seats.map((_, i) => i).filter((i) => inHand(h, i)); }
 
-// The legal envelope for the seat to act.
+// The legal envelope for the seat to act. In fixed-limit the raise amount is
+// a single fixed number (minRaiseTo === maxRaiseTo) and the street caps out.
 export function legal(h) {
   if (h.phase !== 'act') return null;
   const i = h.toAct, s = h.seats[i];
   const callAmt = Math.min(h.currentBet - s.streetCommit, s.stack);
   const acts = ['fold'];
   if (callAmt === 0) acts.push('check'); else acts.push('call');
-  const maxTo = s.streetCommit + s.stack;
+  let maxTo = s.streetCommit + s.stack;
   let minTo = h.currentBet + h.minRaiseSize;
-  if (maxTo > h.currentBet && s.canRaise) {
+  let mayRaise = maxTo > h.currentBet && s.canRaise;
+  if (h.limit) {
+    const betSize = h.street <= 1 ? h.bb : h.bb * 2;
+    if (h.streetRaises >= h.limitCap) mayRaise = false;
+    minTo = Math.min(h.currentBet + betSize, s.streetCommit + s.stack);
+    maxTo = mayRaise ? minTo : s.streetCommit + s.stack;
+  }
+  if (mayRaise) {
     acts.push(h.currentBet === 0 ? 'bet' : 'raise');
     if (minTo > maxTo) minTo = maxTo;    // all-in for less than a min-raise
   }
@@ -249,6 +261,7 @@ export function act(h, { seat, action, amount }) {
     }
     const raiseSize = amount - h.currentBet;
     const fullRaise = raiseSize >= h.minRaiseSize;
+    h.streetRaises++;
     commit(h, seat, amount - s.streetCommit);
     h.log.push({ ev: h.currentBet === 0 ? 'bet' : 'raise', seat, to: amount });
     h.currentBet = amount;
@@ -284,6 +297,7 @@ function nextStreet(h) {
   h.street++;
   for (const s of h.seats) { s.streetCommit = 0; s.acted = false; s.canRaise = true; }
   h.currentBet = 0; h.minRaiseSize = h.bb;
+  h.streetRaises = 0;
   if (h.street === 1) h.board.push(h.deck[h.deckPos++], h.deck[h.deckPos++], h.deck[h.deckPos++]);
   else h.board.push(h.deck[h.deckPos++]);
   h.log.push({ ev: 'street', street: STREETS[h.street], board: [...h.board] });

@@ -72,5 +72,27 @@ deck-secrecy design first (who shuffles, who holds the deck mid-hand); the
 per-seat views and serializable actions are the seam it will plug into, not
 the whole answer.
 
+## The ladder (in progress)
+
+The destination is a lichess-style skill ladder for **heads-up fixed-limit
+hold'em** — the one poker variant whose heads-up form has been essentially
+solved (Cepheus, 2015), which is exactly why an honest browser-scale ladder
+can exist for it:
+
+- **Level 1 — the characters** (live): the personality bots.
+- **Levels 2–7 — the ladder** (planned): a real CFR-trained strategy for
+  abstracted heads-up limit, diluted with increasing noise as you go down.
+- **The chart room** (planned): lichess-style review — every decision graded
+  against the trained strategy's mix, EV-loss per choice, accuracy per match.
+
+The plumbing is landing bottom-up and is verifiable at each step:
+[`poker.js`](poker.js) speaks **fixed-limit** now (fixed bet units, big bets
+on turn/river, the four-bet cap — tested including a limit fuzz), and
+[`cfr.js`](cfr.js) + [`train.js`](train.js) are the solver core —
+counterfactual regret minimization, currently **verified against Kuhn
+poker's known analytic solution** (game value converges to −1/18 to six
+decimal places; the classic 1/3 bluffing and calling frequencies emerge on
+their own). Next: Leduc, then bucketed heads-up limit.
+
 A [tide-games](https://tide-games.github.io/) boat, built in the fleet
 playbook: one owner, ten critic rounds, everything gh-pages.
