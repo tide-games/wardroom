@@ -91,11 +91,46 @@ body{
 }
 .card.win{outline:3px solid var(--gold);outline-offset:-1px;box-shadow:0 0 18px #e9c15c88}
 .card.dim{filter:brightness(.55)}
-.card.flipin{animation:cardin .28s ease}
 @keyframes cardin{from{transform:translateY(-14px) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
-#verdict{
-  min-height:22px;font-size:clamp(12px,1.6vw,16px);font-weight:700;color:var(--ink);
-  text-shadow:0 1px 4px #000;
+#verdict{min-height:26px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.vline{
+  background:#00000066;border-radius:14px;padding:4px 16px;font-weight:800;
+  font-size:clamp(13px,1.8vw,17px);color:var(--ink);text-shadow:0 1px 4px #000;
+  animation:vin calc(.2s/var(--sp,1)) ease-out;
+}
+.vline.vwin{border:1px solid var(--gold);color:var(--gold)}
+.vline.vlose{color:#ffb9a6}
+.vline.vsoft{color:var(--ink-soft);font-weight:700}
+@keyframes vin{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:10}
+.fxdot{
+  position:absolute;width:14px;height:14px;border-radius:50%;border:2px dashed #ffffffaa;
+  box-shadow:0 1px 2px #0008;transition:transform .38s cubic-bezier(.5,0,.3,1);
+  background:radial-gradient(circle at 35% 35%, #fff5, transparent 60%), var(--cc,#3d6ea5);
+}
+.floater{
+  position:absolute;font-weight:800;font-size:clamp(13px,1.5vw,16px);pointer-events:none;
+  text-shadow:0 1px 3px #000;transition:transform 1.1s ease-out, opacity 1.1s ease-out;
+  white-space:nowrap;transform:translate(-50%,-50%);
+}
+.handbadge{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:-20px;z-index:6;
+  background:#000000aa;color:var(--ink);font-size:clamp(10px,1.1vw,12px);font-weight:700;
+  padding:2px 10px;border-radius:10px;white-space:nowrap;
+}
+.handbadge.eb{background:#0e3f4a;color:#9fe3ee}
+#felt{transition:filter .5s ease}
+#feltwash{
+  position:absolute;inset:0;border-radius:50%/46%;opacity:0;pointer-events:none;
+  transition:opacity .12s ease-in;
+}
+#feltwash.on{opacity:1;transition:opacity .12s ease-in}
+#feltwash.off{opacity:0;transition:opacity .9s ease-out}
+.card.flipin{animation:cardin calc(.28s/var(--sp,1)) ease}
+@media (prefers-reduced-motion: reduce){
+  .card.flipin,.vline{animation:none}
+  .fxdot,.floater{transition:none}
+  #banner{transition:opacity .1s}
 }
 /* ---------------- seats ---------------- */
 .seat{position:absolute;width:clamp(120px,15vw,190px);transform:translate(-50%,-50%);text-align:center}
@@ -238,7 +273,7 @@ body{
 </div>
 <div id="room">
   <div id="tablewrap">
-    <div id="felt"></div>
+    <div id="felt"><div id="feltwash"></div></div>
     <div id="center">
       <div id="pot"></div>
       <div id="board"></div>
@@ -246,6 +281,7 @@ body{
     </div>
     <div id="status"></div>
     <div id="seats"></div>
+    <div id="fx"></div>
   </div>
   <div id="banner"><div class="big"></div><div class="small"></div></div>
   <div id="log"><h3>HAND HISTORY</h3><div id="logbody"></div></div>
@@ -278,7 +314,7 @@ body{
 
 <script type="module">
 import {
-  cardName, rankOf, suitOf, SUITS, RANKS,
+  cardName, rankOf, suitOf, SUITS, RANKS, evaluate,
   newHand, legal, act, seatView, STREETS, handName,
   newTourney, tourneyHand, absorbHand, levelOf, levelNum, placings, START_STACK,
   rngFromSeed,
@@ -303,12 +339,26 @@ function blip(freq, dur = .06, gain = .05, type = 'triangle') {
     ac = ac || new AC();
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(gain, ac.currentTime);
+    g.gain.setValueAtTime(.0001, ac.currentTime);
+    g.gain.linearRampToValueAtTime(gain, ac.currentTime + .003);
     g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
     o.connect(g); g.connect(ac.destination);
     o.start(); o.stop(ac.currentTime + dur);
   } catch { /* no audio */ }
 }
+function chord(freqs, dur, gain) { for (const f of freqs) blip(f, dur, gain); }
+function seq(notes, gapMs, dur, gain, type = 'sine') {
+  notes.forEach((f, i) => setTimeout(() => blip(f, dur, gain, type), i * gapMs));
+}
+const sWinSmall = () => seq([523, 784], 90, .12, .06, 'triangle');
+const sWinBig = () => seq([523, 659, 784, 1047, 1318, 1568], 85, .3, .07);
+const sLose = () => seq([233, 174], 140, .16, .05, 'triangle');
+const sChop = () => chord([523, 659], .2, .04);
+const sVillain = () => blip(392, .12, .04, 'triangle');
+const sMuck = () => { try { ac = ac || new AC(); const b = ac.createBufferSource(), buf = ac.createBuffer(1, 2646, 44100); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * .25; b.buffer = buf; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; b.connect(f); f.connect(ac.destination); if (soundOn) b.start(); } catch { /* quiet */ } };
+const sKnock = () => blip(140, .04, .05, 'square');
+const sBust = () => seq([262, 196, 147], 200, .28, .06);
+const sLevelUp = () => seq([440, 587], 110, .18, .05);
 function unlockAudio() {
   try { ac = ac || new AC(); if (ac.state === 'suspended') ac.resume(); } catch { /* no audio */ }
 }
@@ -363,6 +413,61 @@ for (let i = 0; i < 6; i++) {
     stk: d.querySelector('.stk'), cards: d.querySelector('.cards') });
 }
 
+// ---------------- fx layer (decoration only: state is always applied at
+// step boundaries; these can be wiped at any moment without harm)
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let fxGen = 0;
+const fxEl = () => $('#fx');
+function clearFx() { fxGen++; fxEl().innerHTML = ''; }
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { clearFx(); if (h) renderHand(h.phase === 'done'); }
+});
+function rel(el) {
+  const w = $('#tablewrap').getBoundingClientRect(), r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2 - w.left, y: r.top + r.height / 2 - w.top };
+}
+function fxAdd(el, lifeMs) {
+  const gen = fxGen;
+  fxEl().appendChild(el);
+  setTimeout(() => { if (gen === fxGen) el.remove(); }, lifeMs + 400);
+}
+function flyDot(from, to, color, delayMs = 0) {
+  if (REDUCED || document.hidden) return;
+  const gen = fxGen;
+  setTimeout(() => {
+    if (gen !== fxGen) return;
+    const d = document.createElement('div');
+    d.className = 'fxdot'; d.style.setProperty('--cc', color);
+    d.style.left = (from.x - 7) + 'px'; d.style.top = (from.y - 7) + 'px';
+    fxAdd(d, 500);
+    requestAnimationFrame(() => { d.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`; });
+  }, delayMs);
+}
+function floater(text, at, color, delayMs = 0) {
+  const gen = fxGen;
+  setTimeout(() => {
+    if (gen !== fxGen) return;
+    const f = document.createElement('div');
+    f.className = 'floater'; f.textContent = text; f.style.color = color;
+    f.style.left = at.x + 'px'; f.style.top = at.y + 'px';
+    fxAdd(f, 1300);
+    if (!REDUCED && !document.hidden) requestAnimationFrame(() => {
+      f.style.transform = 'translate(-50%,-50%) translateY(-36px)'; f.style.opacity = '0';
+    });
+    else setTimeout(() => { if (gen === fxGen) f.remove(); }, 1500);
+  }, delayMs);
+}
+function feltWash(color, holdMs) {
+  const gen = fxGen, w = $('#feltwash');
+  w.style.background = color;
+  w.classList.remove('off'); w.classList.add('on');
+  setTimeout(() => { if (gen === fxGen) { w.classList.remove('on'); w.classList.add('off'); } }, holdMs);
+}
+function potPulse() {
+  const p = $('#pot');
+  p.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 140 });
+}
+
 function cardEl(c, small) {
   const el = document.createElement('div');
   const suit = suitOf(c);
@@ -404,15 +509,19 @@ function renderTop() {
   $('#t-hand').textContent = t.handIndex + 1;
   $('#t-next').textContent = t.handsPerLevel - (t.handIndex % t.handsPerLevel);
 }
+let boardShown = 0;                     // choreographer-owned board reveal cursor
+let displayOffset = {};                 // seat -> chips won but not yet visually delivered
+let potOverride = null;                 // settle-scene pot display
 function renderHand(reveal = false) {
-  const pot = h.seats.reduce((a, s) => a + s.handCommit, 0);
+  const pot = potOverride !== null ? potOverride
+    : h.seats.reduce((a, s) => a + s.handCommit, 0);
   $('#pot').textContent = pot > 0 ? `pot ${fmt(pot)}` : '';
-  // board
+  // board — never ahead of the choreographer's cursor
   const boardEl = $('#board');
-  const want = h.board.length;
+  const want = Math.min(boardShown, h.board.length);
   while (boardEl.children.length > want) boardEl.lastChild.remove();
   const existing = boardEl.querySelectorAll('.card').length;
-  for (let i = existing; i < want; i++) { boardEl.appendChild(cardEl(h.board[i])); sCard(); }
+  for (let i = existing; i < want; i++) boardEl.appendChild(cardEl(h.board[i]));
   // seats
   for (let i = 0; i < 6; i++) {
     const s = h.seats[i], el = seatEls[i];
@@ -421,7 +530,7 @@ function renderHand(reveal = false) {
     el.root.classList.toggle('out', s.out);
     el.root.classList.toggle('allin', s.allIn && !s.out && !s.folded);
     el.root.classList.toggle('dealer', h.button === i && !s.out);
-    el.stk.textContent = s.out ? 'out' : fmt(s.stack);
+    el.stk.textContent = s.out ? 'out' : fmt(Math.max(0, s.stack - (displayOffset[i] || 0)));
     el.bet.innerHTML = s.streetCommit > 0
       ? `<span class="chip" style="--cc:${chipColor(s.streetCommit)}"></span>${fmt(s.streetCommit)}` : '';
     // cards
@@ -446,11 +555,16 @@ function bubble(i, text) {
   setTimeout(() => b.classList.remove('show'), 1400 / SPEED);
 }
 function status(msg) { $('#status').textContent = msg || ''; }
-async function banner(big, small, ms = 1800) {
+function toastBad(msg) {
+  const el = $('#status');
+  el.textContent = msg; el.style.color = 'var(--danger)';
+  setTimeout(() => { el.textContent = ''; el.style.color = ''; }, 2200);
+}
+async function banner(big, small, ms = 1800, sound = sAlert) {
   const el = $('#banner');
   el.querySelector('.big').textContent = big;
   el.querySelector('.small').textContent = small || '';
-  el.classList.add('show'); sAlert();
+  el.classList.add('show'); if (sound) sound();
   await sleep(ms);
   el.classList.remove('show');
 }
@@ -471,7 +585,9 @@ function heroTurn(L) {
   const wrap = document.createElement('div'); wrap.className = 'grp';
   const bFold = document.createElement('button'); bFold.id = 'b-fold'; bFold.textContent = 'FOLD';
   const bCall = document.createElement('button'); bCall.id = 'b-call';
-  bCall.textContent = L.callAmount === 0 ? 'CHECK' : `CALL ${fmt(L.callAmount)}`;
+  const allInCall = L.callAmount > 0 && L.callAmount >= h.seats[HERO].stack;
+  bCall.textContent = L.callAmount === 0 ? 'CHECK' : allInCall ? `ALL IN · CALL ${fmt(L.callAmount)}` : `CALL ${fmt(L.callAmount)}`;
+  if (allInCall) bCall.style.background = 'var(--danger)';
   wrap.append(bFold, bCall);
   let slider = null, amt = null;
   const canRaise = L.actions.includes('bet') || L.actions.includes('raise');
@@ -518,14 +634,77 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'r') $('#b-raise')?.click();
 });
 
+// exact equity between REVEALED hands (red-team: vs-random is wrong here)
+function equityKnown(hands, board) {
+  const seen = new Set([...board, ...hands.flat()]);
+  const pool = []; for (let c = 0; c < 52; c++) if (!seen.has(c)) pool.push(c);
+  const need = 5 - board.length;
+  const wins = new Array(hands.length).fill(0);
+  let total = 0;
+  const scoreOut = (extra) => {
+    const full = [...board, ...extra];
+    const scores = hands.map((hd) => evaluate([...hd, ...full]).score);
+    const best = Math.max(...scores);
+    const ws = scores.map((x) => x === best);
+    const n = ws.filter(Boolean).length;
+    ws.forEach((w, i) => { if (w) wins[i] += 1 / n; });
+    total++;
+  };
+  if (need === 0) scoreOut([]);
+  else if (need === 1) for (const c of pool) scoreOut([c]);
+  else if (need === 2) {
+    for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) scoreOut([pool[i], pool[j]]);
+  } else {
+    let x = 123456789 >>> 0;                       // fixed-seed LCG, display only
+    const rnd = () => ((x = (1103515245 * x + 12345) >>> 0) / 4294967296);
+    for (let k = 0; k < 700; k++) {
+      const p = [...pool];
+      for (let i = 0; i < need; i++) { const j = i + ((rnd() * (p.length - i)) | 0); [p[i], p[j]] = [p[j], p[i]]; }
+      scoreOut(p.slice(0, need));
+    }
+  }
+  return wins.map((w) => w / total);
+}
+function setBadge(seat, text, cls = '') {
+  let b = seatEls[seat].root.querySelector('.handbadge');
+  if (!b) { b = document.createElement('div'); b.className = 'handbadge'; seatEls[seat].root.appendChild(b); }
+  b.className = 'handbadge ' + cls;
+  b.textContent = text;
+}
+
 // ---------------- playing one hand
 const ACT_WORDS = { fold: 'folds', check: 'checks', call: 'calls', bet: 'bets', raise: 'raises to' };
+async function dealBoardTo(n) {
+  while (boardShown < n) {
+    boardShown++;
+    renderHand(h.phase === 'done' && h.result?.showdown);
+    sCard();
+    await sleep(140);
+  }
+}
+// bets slide to the pot at street end — reads the snapshot, never live state
+async function sweepStreet(commits) {
+  const potAt = rel($('#pot').textContent ? $('#pot') : $('#board'));
+  let k = 0, any = false;
+  for (let i = 0; i < 6; i++) {
+    if (!commits[i]) continue;
+    any = true;
+    const from = rel(seatEls[i].bet.textContent ? seatEls[i].bet : seatEls[i].root);
+    flyDot(from, potAt, chipColor(commits[i]), k * 45);
+    setTimeout(() => { if (!document.hidden) sChip(); }, k * 45 + 300);
+    k++;
+  }
+  if (any && !REDUCED && !document.hidden) { await sleep(430 + k * 45); potPulse(); }
+}
 async function playHand() {
   renderTop();
   const seed = await sha256hex(`${tourneySeed}|hand|${t.handIndex}`);
   const commit = await sha256hex(seed);
   h = tourneyHand(t, seed);
-  $('#verdict').textContent = '';
+  clearFx();
+  boardShown = 0; displayOffset = {}; potOverride = null;
+  document.querySelectorAll('.handbadge').forEach((b) => b.remove());
+  $('#verdict').innerHTML = '';
   $('#board').innerHTML = '';
   logLine(`<span class="hand-head">Hand #${t.handIndex + 1} — level ${levelNum(t)} (${levelOf(t).sb}/${levelOf(t).bb})</span>`);
   logLine(`<span class="seed">shuffle committed: sha256(seed) = ${commit}</span>`);
@@ -538,7 +717,7 @@ async function playHand() {
   while (h.phase === 'act') {
     if (h.street !== lastStreet) {
       lastStreet = h.street;
-      renderHand();
+      await dealBoardTo(h.board.length);
       logLine(`<b>${STREETS[h.street]}</b> ${h.board.map(cardName).join(' ')}`);
       await sleep(650);
     }
@@ -554,49 +733,179 @@ async function playHand() {
       const rng = rngFromSeed(await sha256hex(`${seed}|bot|${L.seat}|${h.log.length}`));
       a = decide(view, L, PROFS[L.seat] ?? 'tag', rng, { rollouts: 120 });
     }
-    act(h, a);
+    // snapshot: after act() the street may roll and zero the commits (engine
+    // is synchronous), so the sweep reads this, not the live state
+    const prevStreet = h.street;
+    const prevCommits = h.seats.map((x) => x.streetCommit);
+    try {
+      act(h, a);
+    } catch (e) {
+      heroResolve = null;
+      if (L.seat === HERO) { toastBad(String(e.message || e)); continue; }
+      throw e;                                   // a bot playing illegally is a real bug
+    }
     heroResolve = null;
+    if (a.action === 'call') prevCommits[a.seat] += L.callAmount;
+    else if (a.action === 'bet' || a.action === 'raise') prevCommits[a.seat] = a.amount;
+    const streetEnded = h.street !== prevStreet || h.phase === 'done';
     const word = ACT_WORDS[a.action];
     const label = a.action === 'bet' || a.action === 'raise' ? `${word} ${fmt(a.amount)}`
-      : a.action === 'call' ? `${word}` : word;
+      : a.action === 'call' ? `call ${fmt(L.callAmount)}` : word;
     bubble(a.seat, label);
-    if (a.action !== 'fold' && a.action !== 'check') sChip();
+    if (a.action === 'fold') sMuck();
+    else if (a.action === 'check') sKnock();
+    else if (!streetEnded) sChip();
     logLine(`${NAMES[a.seat]} <b>${label}</b>`);
+    if (streetEnded) await sweepStreet(prevCommits);
     renderHand();
   }
 
-  // ---- hand over
+  // ---- hand over: the settle scene
   clearActions();
   renderTop();
   const r = h.result;
+  const heroDealt = h.seats[HERO].hole !== null && !h.seats[HERO].out;
+  const heroAtShowdown = heroDealt && r.showdown && !h.seats[HERO].folded;
+  const heroWon = r.winners.some((w) => w.seat === HERO);
+  const heroWonAmt = r.winners.find((w) => w.seat === HERO)?.amount || 0;
+  const heroLostAmt = h.seats[HERO].handCommit;
+  const heroInvolved = heroDealt && (heroAtShowdown || heroWon || heroLostAmt > h.bb);
+  const potTotal = r.pots.reduce((a, p) => a + p.amount, 0);
+  const vline = (html, cls = '') => {
+    const d = document.createElement('div'); d.className = 'vline ' + cls; d.innerHTML = html;
+    $('#verdict').appendChild(d);
+  };
+
+  // refund made visible before anything settles
+  const refund = h.log.find((l) => l.ev === 'refund');
+  if (refund) {
+    floater(`${fmt(refund.amount)} returned`, rel(seatEls[refund.seat].root), 'var(--ink-soft)');
+    logLine(`${refund.seat === HERO ? 'You get' : NAMES[refund.seat] + ' gets'} ${fmt(refund.amount)} back (uncalled)`);
+    await sleep(650);
+  }
+  potOverride = potTotal;
+
   if (r.showdown) {
+    const wasRunout = h.board.length > boardShown;
+    renderHand(true);                              // reveal hands (board still at cursor)
+    const live = Object.keys(r.evals).map(Number);
+    if (wasRunout && live.length >= 2 && live.length <= 4) {
+      // the sweat: equities while the board runs out
+      const holes = live.map((i) => h.seats[i].hole);
+      for (const [k, i] of live.entries()) {
+        const eq = equityKnown(holes, h.board.slice(0, boardShown));
+        setBadge(i, Math.round(eq[k] * 100) + '%', 'eb');
+      }
+      await sleep(900);
+      while (boardShown < h.board.length) {
+        await dealBoardTo(Math.min(boardShown + (boardShown < 3 ? 3 : 1), h.board.length));
+        const eqs = equityKnown(holes, h.board.slice(0, boardShown));
+        for (const [k, i] of live.entries()) setBadge(i, Math.round(eqs[k] * 100) + '%', 'eb');
+        await sleep(boardShown === 4 ? 1100 : 900);
+      }
+    } else {
+      await dealBoardTo(h.board.length);
+    }
+    await sleep(500);
+    // name every shown hand; winners gold, losers dim
+    for (const i of live) setBadge(i, r.evals[i].name);
+    const winnerSeats = new Set(r.winners.map((w) => w.seat));
+    for (const i of live) {
+      const cards = seatEls[i].cards.querySelectorAll('.card');
+      cards.forEach((c) => c.classList.add(winnerSeats.has(i) ? 'win' : 'dim'));
+    }
+    // per-pot verdict lines, side pots first
+    displayOffset = {}; r.winners.forEach((w) => { displayOffset[w.seat] = w.amount; });
     renderHand(true);
-    await sleep(700);
-    // winner verdicts, biggest pot first
-    const mainWinners = r.pots[0].winners;
-    const names = r.winners.map((w) => NAMES[w.seat]).join(' & ');
-    const bestSeat = mainWinners[0];
-    const verdictName = r.evals[bestSeat]?.name || '';
-    const winVerb = r.winners.length > 1 || r.winners.some((w) => w.seat === HERO) ? 'win' : 'wins';
-    $('#verdict').textContent = `${names} ${winVerb} with ${verdictName}`;
-    highlightWin(bestSeat);
-    sWin();
-    for (const w of r.winners) logLine(`<b>${NAMES[w.seat]}</b> wins ${fmt(w.amount)} — ${r.evals[w.seat]?.name ?? ''}`);
-    await sleep(2400);
+    const pots = [...r.pots].reverse();
+    for (const [pi, p] of pots.entries()) {
+      const potName = r.pots.length > 1 ? (p === r.pots[0] ? 'Main pot' : 'Side pot') : '';
+      const wname = r.evals[p.winners[0]].name;
+      const share = Math.floor(p.amount / p.winners.length);
+      let text, cls = '';
+      if (p.winners.length > 1) {
+        const who = p.winners.map((i) => (i === HERO ? 'you' : NAMES[i])).join(' and ');
+        text = `Split pot — ${who} chop ${fmt(p.amount)} with ${wname}`;
+        cls = p.winners.includes(HERO) ? 'vwin' : '';
+      } else if (p.winners[0] === HERO) {
+        text = `${potName ? potName + ' — ' : ''}You win ${fmt(p.amount)} with ${wname}`;
+        cls = 'vwin';
+      } else {
+        text = `${potName ? potName + ' — ' : ''}${NAMES[p.winners[0]]} wins ${fmt(p.amount)} with ${wname}`;
+      }
+      vline(text, cls);
+      // pot -> winner dots
+      const potAt = rel($('#pot'));
+      for (const wSeat of p.winners) {
+        const dots = Math.min(9, 3 + Math.floor(Math.log2(Math.max(2, p.amount / h.bb))));
+        for (let d = 0; d < dots; d++) flyDot(potAt, rel(seatEls[wSeat].root), chipColor(share), d * 30);
+        floater('+' + fmt(p.winners.length > 1 ? share : p.amount), rel(seatEls[wSeat].root), 'var(--gold)', 350);
+      }
+      potOverride = Math.max(0, potOverride - p.amount);
+      if (pi < pots.length - 1) await sleep(900);
+    }
+    // the hero's own truth
+    if (heroAtShowdown && !heroWon) {
+      vline(`You lose ${fmt(heroLostAmt)} — your ${r.evals[HERO].name.replace(/^(a|an) /, '')}`, 'vlose');
+      floater('−' + fmt(heroLostAmt), rel(seatEls[HERO].root), '#ffb9a6', 200);
+      feltWash('radial-gradient(80% 90% at 50% 40%, rgba(90,40,35,.20), transparent 75%)', 700);
+    } else if (heroWon) {
+      const bb = heroWonAmt / h.bb;
+      feltWash('radial-gradient(80% 90% at 50% 40%, rgba(233,193,92,' + (bb > 40 ? '.16' : '.10') + '), transparent 75%)', bb > 12 ? 1100 : 600);
+    }
+    // one sound, truthful
+    if (heroWon && r.winners.length > 1) sChop();
+    else if (heroWon) { const bb = heroWonAmt / h.bb; (bb > 40 ? sWinBig : bb >= 12 ? sWin : sWinSmall)(); }
+    else if (heroAtShowdown) sLose();
+    else sVillain();
+    for (const w of r.winners) logLine(`<b>${w.seat === HERO ? 'You win' : NAMES[w.seat] + ' wins'}</b> ${fmt(w.amount)} — ${r.evals[w.seat]?.name ?? ''}`);
+    // stacks count up as the chips land
+    await sleep(400);
+    for (let step = 7; step >= 0; step--) {
+      for (const w of r.winners) displayOffset[w.seat] = Math.floor(w.amount * step / 8);
+      renderHand(true);
+      await sleep(70);
+    }
+    displayOffset = {};
+    const holdMs = heroInvolved ? Math.max(2400 / SPEED, 1600) : 2400 / SPEED;
+    await new Promise((res) => setTimeout(res, holdMs));   // wall-clock hold
   } else {
+    // fold-out
     const w = r.winners[0];
-    $('#verdict').textContent = w.seat === HERO ? 'You take it' : `${NAMES[w.seat]} takes it`;
-    logLine(`<b>${NAMES[w.seat]}</b> wins ${fmt(w.amount)} uncontested`);
-    sWin();
-    await sleep(1400);
+    displayOffset[w.seat] = w.amount;
+    renderHand();
+    if (w.seat === HERO) {
+      vline(`You take the pot — +${fmt(w.amount)}`, 'vwin');
+      sWinSmall();
+    } else {
+      vline(`${NAMES[w.seat]} takes ${fmt(w.amount)}`, 'vsoft');
+      sMuck();
+    }
+    const potAt = rel($('#pot'));
+    for (let d = 0; d < 4; d++) flyDot(potAt, rel(seatEls[w.seat].root), chipColor(w.amount), d * 35);
+    floater('+' + fmt(w.amount), rel(seatEls[w.seat].root), w.seat === HERO ? 'var(--gold)' : 'var(--ink-soft)', 300);
+    logLine(`<b>${w.seat === HERO ? 'You win' : NAMES[w.seat] + ' wins'}</b> ${fmt(w.amount)} uncontested`);
+    await sleep(450);
+    potOverride = 0;
+    displayOffset = {};
+    renderHand();
+    const holdMs = w.seat === HERO ? Math.max(2000 / SPEED, 1500) : 1400 / SPEED;
+    await new Promise((res) => setTimeout(res, holdMs));
   }
 
   logLine(`<span class="seed">seed revealed: ${seed} (hash it — it matches the commitment above)</span>`);
   const { busted } = absorbHand(t, h);
   for (const b of busted) {
     const place = 6 - t.eliminated.indexOf(b);
-    await banner(`${NAMES[b]} is out`, ordinal(place) + ' place', 1600);
-    if (b === HERO) { heroOut = true; offerExit(place); }
+    if (b === HERO) {
+      $('#felt').style.filter = 'saturate(.6)';
+      sBust();
+      await banner(`You're out`, ordinal(place) + ' place', 2200, null);
+      setTimeout(() => { $('#felt').style.filter = ''; }, 1200);
+      heroOut = true; offerExit(place);
+    } else {
+      await banner(`${NAMES[b]} is out`, ordinal(place) + ' place', 1600);
+    }
   }
   renderHand(true);
 }
@@ -639,9 +948,9 @@ async function runTourney() {
     if (levelNum(t) !== lastLevel) {
       lastLevel = levelNum(t);
       const { sb, bb, ante } = levelOf(t);
-      await banner(`Level ${lastLevel}`, `blinds ${sb}/${bb}${ante ? ', ante ' + ante : ''}`, 1500);
+      await banner(`Level ${lastLevel}`, `blinds ${sb}/${bb}${ante ? ', ante ' + ante : ''}`, 1500, sLevelUp);
     }
-    if (heroOut && SPEED < 4) { SPEED = 4; $('#b-speed').textContent = '4×'; }
+    if (heroOut && SPEED < 4) setSpeed(4);
     await playHand();
     if (abortRun) { status(''); runTourney(); return; }
   }
@@ -649,6 +958,7 @@ async function runTourney() {
   logLine(`<span class="seed">tournament seed revealed: ${tourneySeed}</span>`);
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
+  if (t.champion === HERO) { sWinBig(); setTimeout(() => blip(784, .8, .05), 600); } else sVillain();
   $('#trophy-title').textContent = t.champion === HERO ? 'You take the pennant!' : `${NAMES[t.champion]} takes the pennant`;
   $('#trophy-body').innerHTML = places.map((seat, i) =>
     `<div class="place"><b>${medals[i].length > 2 ? medals[i] : medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('');
@@ -657,9 +967,13 @@ async function runTourney() {
 }
 
 // ---------------- chrome
+function setSpeed(x) {
+  SPEED = x;
+  document.documentElement.style.setProperty('--sp', x);
+  $('#b-speed').textContent = x + '×';
+}
 $('#b-speed').addEventListener('click', () => {
-  SPEED = SPEED === 1 ? 2 : SPEED === 2 ? 4 : 1;
-  $('#b-speed').textContent = SPEED + '×';
+  setSpeed(SPEED === 1 ? 2 : SPEED === 2 ? 4 : 1);
 });
 $('#b-sound').addEventListener('click', () => {
   soundOn = !soundOn;
@@ -677,7 +991,7 @@ $('#roster').innerHTML = ROSTER.map((r) => `<div><b>${r.emoji} ${r.name}</b><spa
 // test hooks
 window.__hooks = {
   state: () => ({ hand: t?.handIndex, level: t && levelNum(t), stacks: t?.stacks, phase: h?.phase, toAct: h?.toAct, street: h?.street }),
-  speed: (x) => { SPEED = x; },
+  speed: (x) => { setSpeed(x); },
   act: (a) => heroResolve && heroResolve(a),
 };
 
