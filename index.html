@@ -266,6 +266,7 @@ body{
   </div>
   <div class="btns">
     <button id="b-hu" title="Switch format">⚔ 1v1</button>
+    <button id="b-level" title="Ladder level (heads-up)" style="display:none">Lv 1</button>
     <button id="b-speed" title="Playback speed">1×</button>
     <button id="b-sound" title="Sound">🔊</button>
     <button id="b-log" title="Hand history">☰ log</button>
@@ -321,6 +322,7 @@ import {
   rngFromSeed,
 } from './poker.js';
 import { decide, ROSTER } from './bots.js';
+import { ladderDecide } from './ladder.js';
 
 const $ = (s) => document.querySelector(s);
 const sha256hex = async (s) => {
@@ -558,6 +560,20 @@ const PROFS = [...ROSTER.map((r) => r.profile), null];
 const AVAS = [...ROSTER.map((r) => r.emoji), '⚓'];
 let t = null, h = null, tourneySeed = null, heroOut = false, running = false, abortRun = false;
 let mode = '6max', huOpp = -1;      // 'hu' = heads-up vs one random character
+// the ladder: level 1 = the personality characters (no-limit); levels 2-7 =
+// fixed-limit vs the CFR-trained strategy, diluted with noise going down
+let level = Number(localStorage.getItem('wr.level') || 1);
+const LEVEL_EPS = { 2: .45, 3: .3, 4: .2, 5: .12, 6: .06, 7: 0 };
+let ladderTable = null, ladderMeta = null, ladderLoading = false;
+async function loadLadder() {
+  if (ladderTable || ladderLoading) return;
+  ladderLoading = true;
+  try {
+    const r = await fetch('strategy-hulimit.json');
+    if (r.ok) { const j = await r.json(); ladderTable = j.table; ladderMeta = j; }
+  } catch { /* trains later; personality fallback below */ }
+  ladderLoading = false;
+}
 let heroResolve = null;
 
 function newSeed() {
@@ -672,7 +688,11 @@ function heroTurn(L) {
   let slider = null, amt = null;
   const canRaise = L.actions.includes('bet') || L.actions.includes('raise');
   let bRaise = null;
-  if (canRaise) {
+  if (canRaise && h.limit) {
+    bRaise = document.createElement('button'); bRaise.id = 'b-raise';
+    bRaise.textContent = (L.actions.includes('bet') ? 'BET ' : 'RAISE TO ') + fmt(L.minRaiseTo);
+    wrap.append(bRaise);
+  } else if (canRaise) {
     const ui = document.createElement('div'); ui.id = 'raise-ui';
     slider = document.createElement('input'); slider.type = 'range';
     slider.min = L.minRaiseTo; slider.max = L.maxRaiseTo; slider.step = Math.max(1, h.bb / 2);
@@ -701,7 +721,7 @@ function heroTurn(L) {
       clearActions(); resolve({ seat: HERO, action: L.callAmount === 0 ? 'check' : 'call' });
     });
     if (bRaise) bRaise.addEventListener('click', () => {
-      const to = +slider.value;
+      const to = slider ? +slider.value : L.minRaiseTo;
       clearActions();
       resolve({ seat: HERO, action: L.actions.includes('bet') ? 'bet' : 'raise', amount: to });
     });
@@ -782,6 +802,11 @@ async function playHand() {
   const seed = await sha256hex(`${tourneySeed}|hand|${t.handIndex}`);
   const commit = await sha256hex(seed);
   h = tourneyHand(t, seed);
+  if (mode === 'hu' && level >= 2 && !h.limit) {
+    // ladder levels play fixed-limit: rebuild the hand in limit mode
+    const { sb, bb, ante } = levelOf(t);
+    h = newHand({ seats: t.names.map((name, i) => ({ name, stack: t.stacks[i] })), button: t.button, sb, bb, ante, seedHex: seed, limit: true });
+  }
   clearFx();
   boardShown = 0; displayOffset = {}; potOverride = null;
   document.querySelectorAll('.handbadge').forEach((b) => b.remove());
@@ -812,7 +837,11 @@ async function playHand() {
       await sleep(380 + Math.random() * 620);
       const view = seatView(h, L.seat);
       const rng = rngFromSeed(await sha256hex(`${seed}|bot|${L.seat}|${h.log.length}`));
-      a = decide(view, L, PROFS[L.seat] ?? 'tag', rng, { rollouts: 120 });
+      if (mode === 'hu' && level >= 2 && ladderTable) {
+        a = ladderDecide(h, L.seat, L, ladderTable, LEVEL_EPS[level] ?? 0, rng);
+      } else {
+        a = decide(view, L, PROFS[L.seat] ?? 'tag', rng, { rollouts: 120 });
+      }
     }
     // snapshot: after act() the street may roll and zero the commits (engine
     // is synchronous), so the sweep reads this, not the live state
@@ -1044,12 +1073,16 @@ async function runTourney() {
     huOpp = (Math.random() * 5) | 0;
     for (let i = 0; i < 5; i++) if (i !== huOpp) t.stacks[i] = 0;
     t.button = huOpp;                 // the button must start on a live seat
+    if (level >= 2) loadLadder();
   } else huOpp = -1;
+  $('#b-level').style.display = mode === 'hu' ? '' : 'none';
+  $('#b-level').textContent = 'Lv ' + level;
   renderStatic(); renderTop();
   logBody.innerHTML = '';
   logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
   logLine(`<span class="seed">hand seeds derive as sha256(tournamentSeed|hand|N) — the tournament seed is revealed when it ends</span>`);
-  if (mode === 'hu') await banner('HEADS-UP', `you vs ${NAMES[huOpp]} — blinds rise every 8 hands`, 2000);
+  if (mode === 'hu' && level >= 2) await banner(`HEADS-UP — LEVEL ${level}`, `fixed-limit vs ${NAMES[huOpp]}${ladderTable ? '' : ' (strategy still training — character fallback)'}`, 2200);
+  else if (mode === 'hu') await banner('HEADS-UP', `you vs ${NAMES[huOpp]} — blinds rise every 8 hands`, 2000);
   else await banner('THE WARDROOM', 'six-handed sit & go — blinds rise every 8 hands', 2000);
   let lastLevel = 1;
   while (t.champion === null) {
@@ -1080,6 +1113,13 @@ function setSpeed(x) {
   document.documentElement.style.setProperty('--sp', x);
   $('#b-speed').textContent = x + '×';
 }
+$('#b-level').addEventListener('click', () => {
+  level = level >= 7 ? 1 : level + 1;
+  localStorage.setItem('wr.level', level);
+  $('#b-level').textContent = 'Lv ' + level;
+  if (running) { abortRun = true; status(`finishing this hand — then level ${level}…`); }
+  else runTourney();
+});
 $('#b-hu').addEventListener('click', () => {
   mode = mode === 'hu' ? '6max' : 'hu';
   $('#b-hu').textContent = mode === 'hu' ? '👥 6-max' : '⚔ 1v1';

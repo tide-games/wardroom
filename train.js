@@ -3,7 +3,7 @@
 // analytic solution (game value to player 0 = -1/18 ≈ -0.05556). This is the
 // correctness gate for the solver core before it meets Leduc and then
 // abstracted heads-up limit hold'em.
-import { newSolver, KUHN } from './cfr.js';
+import { newSolver, KUHN, LEDUC, exploitability } from './cfr.js';
 
 const solver = newSolver(KUHN);
 const t0 = Date.now();
@@ -45,5 +45,25 @@ for (const key of ['J|', 'Q|', 'K|', 'J|c', 'Q|c', 'K|c', 'Q|b', 'Q|cb']) {
   if (avg[key]) console.log(`  ${key.padEnd(5)} ${avg[key].map((x) => x.toFixed(3)).join(' / ')}`);
 }
 
+const expl = exploitability(KUHN, avg);
+console.log(`\nKuhn exploitability of the average strategy: ${expl.toFixed(5)} (0 = equilibrium)`);
+if (expl > 0.005) { fails++; console.error('  FAIL Kuhn exploitability gate'); }
+
+// ---- gate 2: Leduc — bigger game, board card, raise cap; gate on exploitability
+{
+  const t1 = Date.now();
+  const s2 = newSolver(LEDUC);
+  const IT = 20_000;
+  for (let i = 0; i < IT / 500; i++) s2.iterate(500);
+  const avg2 = s2.averageStrategy();
+  const v2 = s2.valueOf(avg2);
+  const e2 = exploitability(LEDUC, avg2);
+  const secs2 = ((Date.now() - t1) / 1000).toFixed(1);
+  console.log(`\nLeduc poker, ${IT.toLocaleString()} iterations in ${secs2}s`);
+  console.log(`game value (player 0): ${v2.toFixed(4)}  exploitability: ${e2.toFixed(4)}`);
+  console.log(`infosets learned: ${Object.keys(avg2).length}`);
+  if (e2 > 0.05) { fails++; console.error('  FAIL Leduc exploitability gate (want < 0.05)'); }
+}
+
 if (fails) { console.error(`\n${fails} FAILURE(S)`); process.exit(1); }
-console.log('\nCFR core verified against the known solution');
+console.log('\nCFR core verified: Kuhn exact, Leduc converging');
