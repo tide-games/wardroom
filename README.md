@@ -85,6 +85,15 @@ can exist for it:
 - **The chart room** (planned): lichess-style review — every decision graded
   against the trained strategy's mix, EV-loss per choice, accuracy per match.
 
+**The preflop is solved — literally.** The ladder's preflop strategy is
+grafted from **Cepheus** (Bowling, Burch, Johanson &amp; Tammelin, *"Heads-up
+limit hold'em poker is solved"*, Science 347(6218), 2015 — data from the
+project's public site, poker.srv.ualberta.ca): the essentially-solved game's
+exact per-hand frequencies for every preflop betting sequence. Postflop is
+our own CFR-trained table. `cepheus-compare.js` is the standing audit — it
+measured our pre-graft preflop at 24.7% mean divergence from solved play and
+the grafted table at 0.0%; `graft-cepheus.js` performs the graft.
+
 The plumbing is landing bottom-up and is verifiable at each step:
 [`poker.js`](poker.js) speaks **fixed-limit** now (fixed bet units, big bets
 on turn/river, the four-bet cap — tested including a limit fuzz), and
