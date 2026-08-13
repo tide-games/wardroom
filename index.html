@@ -786,9 +786,9 @@ function heroTurn(L) {
 }
 document.addEventListener('keydown', (e) => {
   if (!heroResolve) return;
-  if (e.key === 'f') $('#b-fold')?.click();
-  if (e.key === 'c' || e.key === ' ') { e.preventDefault(); $('#b-call')?.click(); }
-  if (e.key === 'r') $('#b-raise')?.click();
+  if (e.key === 'f' || e.key === '1') $('#b-fold')?.click();
+  if (e.key === 'c' || e.key === ' ' || e.key === '2') { e.preventDefault(); $('#b-call')?.click(); }
+  if (e.key === 'r' || e.key === '3') $('#b-raise')?.click();
 });
 
 // exact equity between REVEALED hands (red-team: vs-random is wrong here)

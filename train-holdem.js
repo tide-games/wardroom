@@ -44,7 +44,9 @@ function deal() {
   return { holes: [[deck[0], deck[1]], [deck[2], deck[3]]], board: deck.slice(4, 9) };
 }
 
-// external-sampling MCCFR traversal for `traverser`
+// external-sampling MCCFR traversal for `traverser`; `w` is the linear
+// averaging weight (CFR+): later iterations dominate the average strategy
+let avgWeight = 1;
 function traverse(st, holes, board, traverser) {
   if (st.done) {
     const u = HU.utility(st, holes, board);
@@ -61,12 +63,12 @@ function traverse(st, holes, board, traverser) {
       nodeUtil += strat[a] * utils[a];
     }
     const r = get(regret, key, acts.length);
-    for (let a = 0; a < acts.length; a++) r[a] += utils[a] - nodeUtil;
+    for (let a = 0; a < acts.length; a++) r[a] = Math.max(0, r[a] + utils[a] - nodeUtil);   // RM+
     return nodeUtil;
   }
   // opponent: sample one action, accumulate their average strategy
   const ss = get(strategySum, key, acts.length);
-  for (let a = 0; a < acts.length; a++) ss[a] += strat[a];
+  for (let a = 0; a < acts.length; a++) ss[a] += avgWeight * strat[a];
   let x = Math.random(), pick = acts.length - 1;
   for (let a = 0; a < acts.length; a++) { x -= strat[a]; if (x <= 0) { pick = a; break; } }
   return traverse(HU.apply(st, acts[pick]), holes, board, traverser);
@@ -76,6 +78,7 @@ const t0 = Date.now();
 const report = Math.max(1, Math.floor(ITERS / 10));
 for (let i = 0; i < ITERS; i++) {
   const { holes, board } = deal();
+  avgWeight = (iterationsDone + i) / 1e6 + 1;      // linear averaging, scaled
   traverse(HU.initial(), holes, board, i % 2);
   if ((i + 1) % report === 0) {
     const rate = ((i + 1) / ((Date.now() - t0) / 1000)).toFixed(0);
