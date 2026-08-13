@@ -701,10 +701,25 @@ function logLine(html) {
 // ---------------- the action bar
 const actionsEl = $('#actions');
 function clearActions() { actionsEl.innerHTML = ''; }
+let hintedThisDecision = false;
 function heroTurn(L) {
   clearActions();
+  hintedThisDecision = false;
   const view = seatView(h, HERO);
   const wrap = document.createElement('div'); wrap.className = 'grp';
+  if (mode === 'hu' && level >= 2 && ladderTable && h.limit) {
+    const bHint = document.createElement('button'); bHint.className = 'qbtn'; bHint.textContent = '💡';
+    bHint.title = 'Show the trained mix for this spot (hinted decisions are flagged and not counted in accuracy)';
+    bHint.addEventListener('click', () => {
+      const mix = tableMix(h, HERO, L, ladderTable);
+      if (!mix.known) { status('the chart has no line for this spot'); return; }
+      hintedThisDecision = true;
+      const words = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`);
+      status('💡 chart: ' + words.join(' · '));
+      bHint.disabled = true;
+    });
+    wrap.appendChild(bHint);
+  }
   const bFold = document.createElement('button'); bFold.id = 'b-fold'; bFold.textContent = 'FOLD';
   const bCall = document.createElement('button'); bCall.id = 'b-call';
   const allInCall = L.callAmount > 0 && L.callAmount >= h.seats[HERO].stack;
@@ -866,11 +881,13 @@ async function playHand() {
           const ci = mix.acts.indexOf(chosen);
           const pChosen = ci >= 0 ? mix.probs[ci] : 0;
           const pMax = Math.max(...mix.probs);
-          const [glyph, word] = gradeTag(pChosen, pMax);
+          const hinted = hintedThisDecision;
+          const [glyph, word] = hinted ? ['🔍', 'hinted'] : gradeTag(pChosen, pMax);
           const mixStr = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`).join(' · ');
-          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax });
+          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted });
           logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}</span>`);
         }
+        status('');
       }
     } else {
       await sleep(380 + Math.random() * 620);
@@ -1175,13 +1192,15 @@ $('#b-level').addEventListener('click', () => {
   else runTourney();
 });
 $('#b-chart').addEventListener('click', () => {
-  const n = matchGrades.length;
-  const acc = n ? Math.round(100 * matchGrades.reduce((a, g) => a + Math.min(1, g.pMax > 0 ? g.pChosen / g.pMax : 1), 0) / n) : null;
+  const graded = matchGrades.filter((g) => !g.hinted);
+  const n = graded.length;
+  const acc = n ? Math.round(100 * graded.reduce((a, g) => a + Math.min(1, g.pMax > 0 ? g.pChosen / g.pMax : 1), 0) / n) : null;
+  const hints = matchGrades.length - n;
   const counts = {};
-  for (const g of matchGrades) counts[g.word] = (counts[g.word] || 0) + 1;
+  for (const g of graded) counts[g.word] = (counts[g.word] || 0) + 1;
   $('#chart-summary').innerHTML = `
     <div><div style="font-size:26px;font-weight:800;color:var(--gold)">${acc === null ? '—' : acc + '%'}</div><div style="font-size:11px;color:var(--ink-soft)">accuracy</div></div>
-    <div><div style="font-size:26px;font-weight:800">${n}</div><div style="font-size:11px;color:var(--ink-soft)">graded decisions</div></div>
+    <div><div style="font-size:26px;font-weight:800">${n}</div><div style="font-size:11px;color:var(--ink-soft)">graded${hints ? ' (+' + hints + ' 🔍 hinted)' : ''}</div></div>
     <div><div style="font-size:26px;font-weight:800">⚡ ${Math.round(rating.r)}</div><div style="font-size:11px;color:var(--ink-soft)">rating ±${Math.round(rating.rd)}</div></div>
     <div><div style="font-size:26px;font-weight:800">${['book','mix','inaccuracy','off the chart'].map(w => counts[w] || 0).join('/')}</div><div style="font-size:11px;color:var(--ink-soft)">📖/⚖/✏/✘</div></div>`;
   $('#chart-list').innerHTML = matchGrades.length
