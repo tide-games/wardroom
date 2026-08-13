@@ -102,7 +102,10 @@ export const HU = {
     if (a === 'k') {
       s.contrib[s.actor] += s.toCall;
       const acted = s.rounds[s.street].length;
-      const closes = s.toCall > 0 ? true : acted >= 2;
+      // a call closes the street EXCEPT the preflop open-limp: the big blind
+      // still holds the option to check or raise (the bug the chart room
+      // caught: without this, CFR learns to limp aces)
+      const closes = s.toCall > 0 ? !(s.street === 0 && acted === 1) : acted >= 2;
       s.toCall = 0;
       if (closes) {
         if (s.street === 3) { s.done = true; return s; }
@@ -149,7 +152,8 @@ export function historyRounds(h) {
   }
   return rounds;
 }
-export function ladderDecide(h, seat, L, table, epsilon, rng) {
+// the trained mix for a seat's current spot: {acts, probs, known}
+export function tableMix(h, seat, L, table) {
   const rounds = historyRounds(h);
   const street = h.street;
   const bucket = streetBucket(street, h.seats[seat].hole, h.board);
@@ -158,7 +162,14 @@ export function ladderDecide(h, seat, L, table, epsilon, rng) {
   const acts = [];                                  // mirror trainer's k/b/f
   if (L.callAmount > 0) { acts.push('k'); if (L.actions.includes('raise') || L.actions.includes('bet')) acts.push('b'); acts.push('f'); }
   else { acts.push('k'); if (L.actions.includes('bet') || L.actions.includes('raise')) acts.push('b'); }
-  let probs = probsRaw && probsRaw.length === acts.length ? [...probsRaw] : acts.map(() => 1 / acts.length);
+  const known = !!(probsRaw && probsRaw.length === acts.length);
+  const probs = known ? [...probsRaw] : acts.map(() => 1 / acts.length);
+  return { acts, probs, known, key };
+}
+export function ladderDecide(h, seat, L, table, epsilon, rng) {
+  const mix = tableMix(h, seat, L, table);
+  const acts = mix.acts;
+  let probs = mix.probs;
   if (epsilon > 0) probs = probs.map((p) => (1 - epsilon) * p + epsilon / probs.length);
   // sample
   let x = rng(), pick = 0;

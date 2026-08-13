@@ -6,6 +6,7 @@ import {
   newHand, legal, act, seatView, STREETS,
   newTourney, tourneyHand, absorbHand, levelOf, levelNum, placings, LEVELS, START_STACK,
 } from './poker.js';
+import { glicko2 } from './rating.js';
 
 let fails = 0;
 function ok(cond, name, detail) {
@@ -340,6 +341,23 @@ const H = (...names) => names.map(C);
   const places = placings(t);
   ok(places.length === 6 && new Set(places).size === 6, 'placings rank all six seats');
   ok(places[0] === t.champion, 'the champion places first');
+}
+
+// ---- Glicko-2 against the worked example in Glickman's paper
+{
+  const p = { r: 1500, rd: 200, vol: 0.06 };
+  const out = glicko2(p, [
+    { r: 1400, rd: 30, score: 1 },
+    { r: 1550, rd: 100, score: 0 },
+    { r: 1700, rd: 300, score: 0 },
+  ]);
+  ok(Math.abs(out.r - 1464.06) < 0.1, 'Glicko-2 rating matches the paper (1464.06)', out.r);
+  ok(Math.abs(out.rd - 151.52) < 0.1, 'Glicko-2 RD matches the paper (151.52)', out.rd);
+  ok(Math.abs(out.vol - 0.05999) < 0.001, 'Glicko-2 volatility stays near 0.06', out.vol);
+  const up = glicko2({ r: 1200, rd: 100, vol: 0.06 }, [{ r: 800, rd: 60, score: 1 }]);
+  ok(up.r > 1200 && up.r < 1215, 'beating a much weaker level moves the rating a little', up.r);
+  const dn = glicko2({ r: 1200, rd: 100, vol: 0.06 }, [{ r: 800, rd: 60, score: 0 }]);
+  ok(dn.r < 1150, 'losing to a much weaker level costs real points', dn.r);
 }
 
 if (fails) { console.error(`\n${fails} FAILURE(S)`); process.exit(1); }

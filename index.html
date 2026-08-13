@@ -267,6 +267,8 @@ body{
   <div class="btns">
     <button id="b-hu" title="Switch format">⚔ 1v1</button>
     <button id="b-level" title="Ladder level (heads-up)" style="display:none">Lv 1</button>
+    <button id="b-rating" title="Your ladder rating" style="display:none">⚡ —</button>
+    <button id="b-chart" title="The chart room — your decisions vs the trained mix" style="display:none">📋</button>
     <button id="b-speed" title="Playback speed">1×</button>
     <button id="b-sound" title="Sound">🔊</button>
     <button id="b-log" title="Hand history">☰ log</button>
@@ -308,6 +310,16 @@ body{
   arrives next. Play chips, plainly: nothing staked, nothing owed.</p>
 </div></div>
 
+<div class="modal-wrap" id="m-chart"><div class="modal">
+  <button class="x">✕</button>
+  <h2>The chart room</h2>
+  <div class="statgrid-c" id="chart-summary" style="display:flex;gap:22px;margin-bottom:12px;font-size:14px"></div>
+  <div id="chart-list" style="font-size:12.5px;line-height:1.7;color:var(--ink-soft);max-height:44vh;overflow:auto"></div>
+  <p class="soft" style="font-size:12px;margin-top:12px">Grades compare your action to the trained
+  strategy's <i>frequencies</i> at the same spot (📖 = its most-played line, ⚖ = a played mix,
+  ✏ = rarely played, ✘ = near-never). Frequency grading, not EV — the honest label.</p>
+</div></div>
+
 <div class="modal-wrap" id="m-trophy"><div class="modal" id="trophy">
   <h2 id="trophy-title">The pennant</h2>
   <div id="trophy-body"></div>
@@ -322,7 +334,8 @@ import {
   rngFromSeed,
 } from './poker.js';
 import { decide, ROSTER } from './bots.js';
-import { ladderDecide } from './ladder.js';
+import { ladderDecide, tableMix } from './ladder.js';
+import { glicko2, freshRating, LEVEL_RATING, LEVEL_RD } from './rating.js';
 
 const $ = (s) => document.querySelector(s);
 const sha256hex = async (s) => {
@@ -565,6 +578,19 @@ let mode = localStorage.getItem('wr.mode') || 'hu', huOpp = -1;   // heads-up tr
 let level = Number(localStorage.getItem('wr.level') || 3);
 const LEVEL_EPS = { 2: .45, 3: .3, 4: .2, 5: .12, 6: .06, 7: 0 };
 let ladderTable = null, ladderMeta = null, ladderLoading = false;
+let rating = freshRating();
+try { rating = Object.assign(freshRating(), JSON.parse(localStorage.getItem('wr.rating') || '{}')); } catch { /* fresh */ }
+let matchGrades = [];                 // this match's graded hero decisions
+function gradeTag(pChosen, pMax) {
+  const ratio = pMax > 0 ? pChosen / pMax : 1;
+  if (ratio >= 0.7 || pChosen >= 0.35) return ['📖', 'book'];
+  if (pChosen >= 0.15) return ['⚖', 'mix'];
+  if (pChosen >= 0.05) return ['✏', 'inaccuracy'];
+  return ['✘', 'off the chart'];
+}
+function renderRatingChip() {
+  $('#b-rating').textContent = '⚡ ' + Math.round(rating.r);
+}
 async function loadLadder() {
   if (ladderTable || ladderLoading) return;
   ladderLoading = true;
@@ -833,6 +859,19 @@ async function playHand() {
     if (L.seat === HERO && !heroOut) {
       status('');
       a = await heroTurn(L);
+      if (mode === 'hu' && level >= 2 && ladderTable && h.limit) {
+        const mix = tableMix(h, HERO, L, ladderTable);
+        if (mix.known) {
+          const chosen = a.action === 'fold' ? 'f' : (a.action === 'bet' || a.action === 'raise') ? 'b' : 'k';
+          const ci = mix.acts.indexOf(chosen);
+          const pChosen = ci >= 0 ? mix.probs[ci] : 0;
+          const pMax = Math.max(...mix.probs);
+          const [glyph, word] = gradeTag(pChosen, pMax);
+          const mixStr = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`).join(' · ');
+          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax });
+          logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}</span>`);
+        }
+      }
     } else {
       await sleep(380 + Math.random() * 620);
       const view = seatView(h, L.seat);
@@ -1077,6 +1116,11 @@ async function runTourney() {
   } else huOpp = -1;
   $('#b-level').style.display = mode === 'hu' ? '' : 'none';
   $('#b-level').textContent = 'Lv ' + level;
+  const trainer = mode === 'hu' && level >= 2;
+  $('#b-rating').style.display = trainer ? '' : 'none';
+  $('#b-chart').style.display = trainer ? '' : 'none';
+  renderRatingChip();
+  matchGrades = [];
   renderStatic(); renderTop();
   logBody.innerHTML = '';
   logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
@@ -1097,12 +1141,22 @@ async function runTourney() {
   }
   // trophy — and open the books
   logLine(`<span class="seed">tournament seed revealed: ${tourneySeed}</span>`);
+  let ratingLine = '';
+  if (mode === 'hu' && level >= 2 && ladderTable) {
+    const before = Math.round(rating.r);
+    rating = glicko2(rating, [{ r: LEVEL_RATING[level], rd: LEVEL_RD, score: t.champion === HERO ? 1 : 0 }]);
+    localStorage.setItem('wr.rating', JSON.stringify(rating));
+    const after = Math.round(rating.r);
+    const d = after - before;
+    ratingLine = `<div class="place" style="margin-top:10px;border-top:1px solid #ffffff18;padding-top:10px">⚡ rating: <b>${before} → ${after}</b> (${d >= 0 ? '+' : ''}${d}) vs level ${level} (${LEVEL_RATING[level]})</div>`;
+    renderRatingChip();
+  }
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
   if (t.champion === HERO) { sWinBig(); setTimeout(() => blip(784, .8, .05), 600); } else sEnd();
   $('#trophy-title').textContent = t.champion === HERO ? 'You take the pennant!' : `${NAMES[t.champion]} takes the pennant`;
   $('#trophy-body').innerHTML = places.map((seat, i) =>
-    `<div class="place"><b>${medals[i].length > 2 ? medals[i] : medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('');
+    `<div class="place"><b>${medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('') + ratingLine;
   $('#m-trophy').classList.add('open');
   running = false;
 }
@@ -1119,6 +1173,21 @@ $('#b-level').addEventListener('click', () => {
   $('#b-level').textContent = 'Lv ' + level;
   if (running) { abortRun = true; status(`finishing this hand — then level ${level}…`); }
   else runTourney();
+});
+$('#b-chart').addEventListener('click', () => {
+  const n = matchGrades.length;
+  const acc = n ? Math.round(100 * matchGrades.reduce((a, g) => a + Math.min(1, g.pMax > 0 ? g.pChosen / g.pMax : 1), 0) / n) : null;
+  const counts = {};
+  for (const g of matchGrades) counts[g.word] = (counts[g.word] || 0) + 1;
+  $('#chart-summary').innerHTML = `
+    <div><div style="font-size:26px;font-weight:800;color:var(--gold)">${acc === null ? '—' : acc + '%'}</div><div style="font-size:11px;color:var(--ink-soft)">accuracy</div></div>
+    <div><div style="font-size:26px;font-weight:800">${n}</div><div style="font-size:11px;color:var(--ink-soft)">graded decisions</div></div>
+    <div><div style="font-size:26px;font-weight:800">⚡ ${Math.round(rating.r)}</div><div style="font-size:11px;color:var(--ink-soft)">rating ±${Math.round(rating.rd)}</div></div>
+    <div><div style="font-size:26px;font-weight:800">${['book','mix','inaccuracy','off the chart'].map(w => counts[w] || 0).join('/')}</div><div style="font-size:11px;color:var(--ink-soft)">📖/⚖/✏/✘</div></div>`;
+  $('#chart-list').innerHTML = matchGrades.length
+    ? [...matchGrades].reverse().map((g) => `<div>${g.glyph} hand ${g.hand} · ${g.street}: you ${g.action} — chart: ${g.mixStr}</div>`).join('')
+    : '<div>No graded decisions yet — play some ladder hands.</div>';
+  $('#m-chart').classList.add('open');
 });
 $('#b-hu').addEventListener('click', () => {
   mode = mode === 'hu' ? '6max' : 'hu';
