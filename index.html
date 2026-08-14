@@ -300,6 +300,7 @@ body{
     <button id="b-rating" title="Your ladder rating" style="display:none">⚡ —</button>
     <button id="b-chart" title="The chart room — your decisions vs the trained mix" style="display:none">📋</button>
     <button id="b-coach" title="Coach mode: show the trained mix on every decision (coached decisions don't count toward accuracy)" style="display:none">🎓</button>
+    <button id="b-rated" title="Rated matches move your rating and disable in-game assistance; casual allows everything and never touches it" style="display:none">☕ casual</button>
     <button id="b-speed" title="Playback speed">1×</button>
     <button id="b-sound" title="Sound">🔊</button>
     <button id="b-log" title="Hand history">☰ log</button>
@@ -615,6 +616,7 @@ let rating = freshRating();
 try { rating = Object.assign(freshRating(), JSON.parse(localStorage.getItem('wr.rating') || '{}')); } catch { /* fresh */ }
 let matchGrades = [];                 // this match's graded hero decisions
 let coachMode = localStorage.getItem('wr.coach') === '1';
+let ratedMode = localStorage.getItem('wr.rated') === '1';
 function gradeTag(pChosen, pMax) {
   const ratio = pMax > 0 ? pChosen / pMax : 1;
   if (ratio >= 0.7 || pChosen >= 0.35) return ['📖', 'book'];
@@ -767,11 +769,11 @@ function heroTurn(L) {
   const view = seatView(h, HERO);
   const wrap = document.createElement('div'); wrap.className = 'grp';
   let coachMix = null;
-  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && coachMode) {
+  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && coachMode && !ratedMode) {
     const mix = teachMix(L);
     if (mix.known) { hintedThisDecision = true; coachMix = mix; }
   }
-  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && !coachMode) {
+  if (mode === 'hu' && level >= 2 && ladderTable && h.limit && !coachMode && !ratedMode) {
     const bHint = document.createElement('button'); bHint.className = 'qbtn'; bHint.textContent = '💡';
     bHint.title = 'Show the trained mix for this spot (hinted decisions are flagged and not counted in accuracy)';
     bHint.addEventListener('click', () => {
@@ -835,6 +837,7 @@ function heroTurn(L) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === '4') {                       // toggle the trainer any time
+    if (ratedMode) { toastBad('no assistance in rated play'); return; }
     const b = $('#b-coach');
     if (b && b.style.display !== 'none') b.click();
     return;
@@ -1222,15 +1225,18 @@ async function runTourney() {
   const trainer = mode === 'hu' && level >= 2;
   $('#b-rating').style.display = trainer ? '' : 'none';
   $('#b-chart').style.display = trainer ? '' : 'none';
-  $('#b-coach').style.display = trainer ? '' : 'none';
+  $('#b-coach').style.display = trainer && !ratedMode ? '' : 'none';
   $('#b-coach').classList.toggle('on', coachMode);
+  $('#b-rated').style.display = trainer ? '' : 'none';
+  $('#b-rated').textContent = ratedMode ? '🏅 rated' : '☕ casual';
+  $('#b-rated').classList.toggle('on', ratedMode);
   renderRatingChip();
   matchGrades = [];
   renderStatic(); renderTop();
   logBody.innerHTML = '';
   logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
   logLine(`<span class="seed">hand seeds derive as sha256(tournamentSeed|hand|N) — the tournament seed is revealed when it ends</span>`);
-  if (mode === 'hu' && level >= 2) await banner(`HEADS-UP — LEVEL ${level}`, `fixed-limit vs ${NAMES[huOpp]}${ladderTable ? '' : ' (strategy still training — character fallback)'}`, 2200);
+  if (mode === 'hu' && level >= 2) await banner(`HEADS-UP — LEVEL ${level}${ratedMode ? ' · RATED' : ''}`, `fixed-limit vs ${NAMES[huOpp]}${ratedMode ? ' — no assistance, rating on the line' : ''}${ladderTable ? '' : ' (strategy still training — character fallback)'}`, 2200);
   else if (mode === 'hu') await banner('HEADS-UP', `you vs ${NAMES[huOpp]} — blinds rise every 8 hands`, 2000);
   else await banner('THE WARDROOM', 'six-handed sit & go — blinds rise every 8 hands', 2000);
   let lastLevel = 1;
@@ -1247,7 +1253,7 @@ async function runTourney() {
   // trophy — and open the books
   logLine(`<span class="seed">tournament seed revealed: ${tourneySeed}</span>`);
   let ratingLine = '';
-  if (mode === 'hu' && level >= 2 && ladderTable) {
+  if (mode === 'hu' && level >= 2 && ladderTable && ratedMode) {
     const before = Math.round(rating.r);
     rating = glicko2(rating, [{ r: LEVEL_RATING[level], rd: LEVEL_RD, score: t.champion === HERO ? 1 : 0 }]);
     localStorage.setItem('wr.rating', JSON.stringify(rating));
@@ -1277,6 +1283,14 @@ $('#b-level').addEventListener('click', () => {
   localStorage.setItem('wr.level', level);
   $('#b-level').textContent = 'Lv ' + level;
   if (running) { abortRun = true; status(`finishing this hand — then level ${level}…`); }
+  else runTourney();
+});
+$('#b-rated').addEventListener('click', () => {
+  ratedMode = !ratedMode;
+  localStorage.setItem('wr.rated', ratedMode ? '1' : '0');
+  $('#b-rated').textContent = ratedMode ? '🏅 rated' : '☕ casual';
+  $('#b-rated').classList.toggle('on', ratedMode);
+  if (running) { abortRun = true; status(`finishing this hand — then a ${ratedMode ? 'rated' : 'casual'} match…`); }
   else runTourney();
 });
 $('#b-coach').addEventListener('click', () => {

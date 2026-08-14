@@ -45,6 +45,19 @@ until better values exist, and are labeled as proxies.
 
 **Level promotion gates on leak, not match wins** — skill, not variance.
 
+## 2b. Rated and casual [LIVE in v0]
+
+Lichess's split, taken further: **casual** allows every tool (hints, coach,
+any level, replays) and never touches a rating or a chain. **Rated**
+disables in-game assistance entirely — the bulb and the coach are not
+merely flagged but *unavailable* — so a rated transcript claims unaided
+play by construction, and the hintFlags field exists only for the casual
+analytics path. Rated is opt-in per match; the chain (§4) records rated
+matches only. The room already implements the split ahead of the Ledger:
+a 🏅/☕ toggle, assistance stripped in rated, rating movement gated on it.
+The anomaly flag (§8) remains necessary regardless: external solvers are
+invisible to any client.
+
 ## 3. Identity
 
 A nostr keypair (xlogin, as everywhere in the fleet). Ratings and chains
