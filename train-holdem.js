@@ -3,11 +3,17 @@
 // Checkpoints let runs accumulate: state saves to train-state.json and the
 // shipped table exports to strategy-hulimit.json (pruned + quantized).
 import fs from 'node:fs';
-import { HU } from './ladder.js';
+import { HU, setEquityEdges } from './ladder.js';
+
+const EQ = process.argv.includes('eq');
+if (EQ) {
+  setEquityEdges(JSON.parse(fs.readFileSync('buckets-eq.json', 'utf8')));
+  console.log('equity abstraction armed: EHS2 percentile buckets on flop/turn');
+}
 
 const ITERS = Number(process.argv[2] || 1_000_000);
-const STATE_FILE = process.argv[3] || 'train-state.json';
-const OUT_FILE = 'strategy-hulimit.json';
+const STATE_FILE = EQ ? 'train-state-eq.json' : (process.argv[3] || 'train-state.json');
+const OUT_FILE = EQ ? 'strategy-eq.json' : 'strategy-hulimit.json';
 
 const regret = new Map();
 const strategySum = new Map();
@@ -105,7 +111,9 @@ for (const [k, ss] of strategySum) {
   table[k] = probs.map((p) => +(p / norm).toFixed(4));
   kept++;
 }
-fs.writeFileSync(OUT_FILE, JSON.stringify({ iterations: iterationsDone, infosets: kept, table }));
+const meta = { iterations: iterationsDone, infosets: kept, table };
+if (EQ) { meta.abstraction = 'ehs2-800-v1'; meta.edges = JSON.parse(fs.readFileSync('buckets-eq.json', 'utf8')); }
+fs.writeFileSync(OUT_FILE, JSON.stringify(meta));
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`\ndone: +${ITERS.toLocaleString()} iterations (${iterationsDone.toLocaleString()} total) in ${secs}s`);
 console.log(`infosets: ${regret.size.toLocaleString()} seen, ${kept.toLocaleString()} exported, ${dropped.toLocaleString()} pruned`);

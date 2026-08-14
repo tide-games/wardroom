@@ -366,7 +366,7 @@ import {
   rngFromSeed,
 } from './poker.js';
 import { decide, ROSTER } from './bots.js';
-import { ladderDecide, tableMix } from './ladder.js';
+import { ladderDecide, tableMix, setEquityEdges } from './ladder.js';
 import { riverMix } from './river-solver.js';
 import { glicko2, freshRating, LEVEL_RATING, LEVEL_RD } from './rating.js';
 
@@ -630,7 +630,11 @@ async function loadLadder() {
   ladderLoading = true;
   try {
     const r = await fetch('strategy-hulimit.json');
-    if (r.ok) { const j = await r.json(); ladderTable = j.table; ladderMeta = j; }
+    if (r.ok) {
+      const j = await r.json();
+      ladderTable = j.table; ladderMeta = j;
+      if (j.edges) setEquityEdges(j.edges);   // ehs2 abstraction ships with its table
+    }
   } catch { /* trains later; personality fallback below */ }
   ladderLoading = false;
 }

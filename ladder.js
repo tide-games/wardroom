@@ -2,6 +2,8 @@
 // same code buckets hands for the trainer (node) and the ladder bot
 // (browser), so the strategy table always means what it meant in training.
 import { rankOf, suitOf, evaluate } from './poker.js';
+import { eqBucket, equityArmed, setEquityEdges } from './equity-buckets.js';
+export { setEquityEdges };
 
 // ---------------------------------------------------------------- preflop
 // Canonical 169: pairs, suited, offsuit — exact, no abstraction loss.
@@ -67,9 +69,13 @@ export function bucketOf(hole, board) {
   return ev.cat * 16 + sub * 4 + flushDraw * 2 + straightDraw;   // 0..143
 }
 
-// street bucket key: preflop uses the exact 169, postflop the feature bucket
+// street bucket key: preflop exact 169; flop/turn use E[HS²] percentile
+// buckets when armed (the research-standard abstraction), else the legacy
+// feature buckets; river keeps feature buckets (runtime river is the solver).
 export function streetBucket(street, hole, board) {
-  return street === 0 ? preflopIndex(hole) : bucketOf(hole, board.slice(0, street === 1 ? 3 : street === 2 ? 4 : 5));
+  if (street === 0) return preflopIndex(hole);
+  if ((street === 1 || street === 2) && equityArmed()) return 'e' + eqBucket(street, hole, board);
+  return bucketOf(hole, board.slice(0, street === 1 ? 3 : street === 2 ? 4 : 5));
 }
 
 // ---------------------------------------------------------------- the game
