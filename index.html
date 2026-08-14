@@ -832,6 +832,11 @@ function heroTurn(L) {
   });
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === '4') {                       // toggle the trainer any time
+    const b = $('#b-coach');
+    if (b && b.style.display !== 'none') b.click();
+    return;
+  }
   if (!heroResolve) return;
   if (e.key === 'f' || e.key === '1') $('#b-fold')?.click();
   if (e.key === 'c' || e.key === ' ' || e.key === '2') { e.preventDefault(); $('#b-call')?.click(); }
