@@ -20,3 +20,484 @@ resumed: 10,000,000 iterations, 160,575 infosets
 2,000,000/10,000,000  160,790 infosets  6484 it/s
 3,000,000/10,000,000  160,878 infosets  6498 it/s
 4,000,000/10,000,000  160,986 infosets  6506 it/s
+5,000,000/10,000,000  161,077 infosets  6509 it/s
+6,000,000/10,000,000  161,181 infosets  6517 it/s
+7,000,000/10,000,000  161,254 infosets  6525 it/s
+8,000,000/10,000,000  161,296 infosets  6534 it/s
+9,000,000/10,000,000  161,329 infosets  6546 it/s
+10,000,000/10,000,000  161,367 infosets  6557 it/s
+
+done: +10,000,000 iterations (20,000,000 total) in 1525.5s
+infosets: 161,367 seen, 156,725 exported, 2,904 pruned
+table: strategy-hulimit.json 6.6MB, state: train-state.json 22.1MB
+--- chunk 3/30 19:40
+resumed: 20,000,000 iterations, 161,367 infosets
+1,000,000/10,000,000  161,411 infosets  6704 it/s
+2,000,000/10,000,000  161,500 infosets  6699 it/s
+3,000,000/10,000,000  161,580 infosets  6692 it/s
+4,000,000/10,000,000  161,611 infosets  6698 it/s
+5,000,000/10,000,000  161,720 infosets  6702 it/s
+6,000,000/10,000,000  161,728 infosets  6704 it/s
+7,000,000/10,000,000  161,767 infosets  6706 it/s
+8,000,000/10,000,000  161,793 infosets  6707 it/s
+9,000,000/10,000,000  161,823 infosets  6707 it/s
+10,000,000/10,000,000  161,831 infosets  6713 it/s
+
+done: +10,000,000 iterations (30,000,000 total) in 1489.9s
+infosets: 161,831 seen, 158,135 exported, 2,178 pruned
+table: strategy-hulimit.json 6.7MB, state: train-state.json 22.2MB
+--- chunk 4/30 20:05
+resumed: 30,000,000 iterations, 161,831 infosets
+1,000,000/10,000,000  161,851 infosets  6634 it/s
+2,000,000/10,000,000  161,862 infosets  6633 it/s
+3,000,000/10,000,000  161,883 infosets  6648 it/s
+4,000,000/10,000,000  161,905 infosets  6665 it/s
+5,000,000/10,000,000  161,913 infosets  6679 it/s
+6,000,000/10,000,000  161,923 infosets  6677 it/s
+7,000,000/10,000,000  161,927 infosets  6669 it/s
+8,000,000/10,000,000  161,949 infosets  6663 it/s
+9,000,000/10,000,000  161,970 infosets  6667 it/s
+10,000,000/10,000,000  161,972 infosets  6669 it/s
+
+done: +10,000,000 iterations (40,000,000 total) in 1499.7s
+infosets: 161,972 seen, 158,724 exported, 1,886 pruned
+table: strategy-hulimit.json 6.7MB, state: train-state.json 22.3MB
+--- chunk 5/30 20:30
+resumed: 40,000,000 iterations, 161,972 infosets
+1,000,000/10,000,000  162,035 infosets  6753 it/s
+2,000,000/10,000,000  162,042 infosets  6761 it/s
+3,000,000/10,000,000  162,048 infosets  6757 it/s
+4,000,000/10,000,000  162,062 infosets  6761 it/s
+5,000,000/10,000,000  162,070 infosets  6761 it/s
+6,000,000/10,000,000  162,087 infosets  6763 it/s
+7,000,000/10,000,000  162,103 infosets  6766 it/s
+8,000,000/10,000,000  162,104 infosets  6771 it/s
+9,000,000/10,000,000  162,121 infosets  6775 it/s
+10,000,000/10,000,000  162,128 infosets  6780 it/s
+
+done: +10,000,000 iterations (50,000,000 total) in 1475.3s
+infosets: 162,128 seen, 159,274 exported, 1,632 pruned
+table: strategy-hulimit.json 6.7MB, state: train-state.json 22.3MB
+--- chunk 6/30 20:54
+resumed: 50,000,000 iterations, 162,128 infosets
+1,000,000/10,000,000  162,135 infosets  6884 it/s
+2,000,000/10,000,000  162,146 infosets  6843 it/s
+3,000,000/10,000,000  162,162 infosets  6834 it/s
+4,000,000/10,000,000  162,171 infosets  6837 it/s
+5,000,000/10,000,000  162,182 infosets  6835 it/s
+6,000,000/10,000,000  162,184 infosets  6832 it/s
+7,000,000/10,000,000  162,196 infosets  6825 it/s
+8,000,000/10,000,000  162,202 infosets  6822 it/s
+9,000,000/10,000,000  162,207 infosets  6824 it/s
+10,000,000/10,000,000  162,214 infosets  6825 it/s
+
+done: +10,000,000 iterations (60,000,000 total) in 1465.5s
+infosets: 162,214 seen, 159,607 exported, 1,463 pruned
+table: strategy-hulimit.json 6.7MB, state: train-state.json 22.4MB
+--- chunk 7/30 21:19
+resumed: 60,000,000 iterations, 162,214 infosets
+1,000,000/10,000,000  162,221 infosets  6749 it/s
+2,000,000/10,000,000  162,236 infosets  6740 it/s
+3,000,000/10,000,000  162,246 infosets  6738 it/s
+4,000,000/10,000,000  162,260 infosets  6750 it/s
+5,000,000/10,000,000  162,260 infosets  6747 it/s
+6,000,000/10,000,000  162,265 infosets  6742 it/s
+7,000,000/10,000,000  162,271 infosets  6733 it/s
+8,000,000/10,000,000  162,272 infosets  6738 it/s
+9,000,000/10,000,000  162,273 infosets  6743 it/s
+10,000,000/10,000,000  162,274 infosets  6751 it/s
+
+done: +10,000,000 iterations (70,000,000 total) in 1481.6s
+infosets: 162,274 seen, 159,866 exported, 1,344 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.4MB
+--- chunk 8/30 21:43
+resumed: 70,000,000 iterations, 162,274 infosets
+1,000,000/10,000,000  162,293 infosets  6721 it/s
+2,000,000/10,000,000  162,318 infosets  6706 it/s
+3,000,000/10,000,000  162,332 infosets  6703 it/s
+4,000,000/10,000,000  162,334 infosets  6694 it/s
+5,000,000/10,000,000  162,334 infosets  6690 it/s
+6,000,000/10,000,000  162,337 infosets  6694 it/s
+7,000,000/10,000,000  162,339 infosets  6697 it/s
+8,000,000/10,000,000  162,344 infosets  6704 it/s
+9,000,000/10,000,000  162,348 infosets  6711 it/s
+10,000,000/10,000,000  162,351 infosets  6716 it/s
+
+done: +10,000,000 iterations (80,000,000 total) in 1489.4s
+infosets: 162,351 seen, 160,101 exported, 1,254 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.4MB
+--- chunk 9/30 22:08
+resumed: 80,000,000 iterations, 162,351 infosets
+1,000,000/10,000,000  162,357 infosets  6881 it/s
+2,000,000/10,000,000  162,358 infosets  6887 it/s
+3,000,000/10,000,000  162,358 infosets  6897 it/s
+4,000,000/10,000,000  162,359 infosets  6902 it/s
+5,000,000/10,000,000  162,373 infosets  6901 it/s
+6,000,000/10,000,000  162,381 infosets  6896 it/s
+7,000,000/10,000,000  162,384 infosets  6892 it/s
+8,000,000/10,000,000  162,384 infosets  6892 it/s
+9,000,000/10,000,000  162,399 infosets  6889 it/s
+10,000,000/10,000,000  162,400 infosets  6884 it/s
+
+done: +10,000,000 iterations (90,000,000 total) in 1452.9s
+infosets: 162,400 seen, 160,306 exported, 1,163 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.4MB
+--- chunk 10/30 22:32
+resumed: 90,000,000 iterations, 162,400 infosets
+1,000,000/10,000,000  162,404 infosets  6893 it/s
+2,000,000/10,000,000  162,417 infosets  6865 it/s
+3,000,000/10,000,000  162,422 infosets  6863 it/s
+4,000,000/10,000,000  162,428 infosets  6877 it/s
+5,000,000/10,000,000  162,428 infosets  6887 it/s
+6,000,000/10,000,000  162,429 infosets  6891 it/s
+7,000,000/10,000,000  162,434 infosets  6897 it/s
+8,000,000/10,000,000  162,438 infosets  6897 it/s
+9,000,000/10,000,000  162,439 infosets  6900 it/s
+10,000,000/10,000,000  162,441 infosets  6896 it/s
+
+done: +10,000,000 iterations (100,000,000 total) in 1450.4s
+infosets: 162,441 seen, 160,449 exported, 1,103 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.4MB
+--- chunk 11/30 22:57
+resumed: 100,000,000 iterations, 162,441 infosets
+1,000,000/10,000,000  162,443 infosets  6890 it/s
+2,000,000/10,000,000  162,446 infosets  6913 it/s
+3,000,000/10,000,000  162,450 infosets  6925 it/s
+4,000,000/10,000,000  162,453 infosets  6918 it/s
+5,000,000/10,000,000  162,458 infosets  6924 it/s
+6,000,000/10,000,000  162,469 infosets  6937 it/s
+7,000,000/10,000,000  162,469 infosets  6941 it/s
+8,000,000/10,000,000  162,478 infosets  6941 it/s
+9,000,000/10,000,000  162,479 infosets  6937 it/s
+10,000,000/10,000,000  162,481 infosets  6940 it/s
+
+done: +10,000,000 iterations (110,000,000 total) in 1441.2s
+infosets: 162,481 seen, 160,551 exported, 1,061 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.4MB
+--- chunk 12/30 23:21
+resumed: 110,000,000 iterations, 162,481 infosets
+1,000,000/10,000,000  162,482 infosets  7010 it/s
+2,000,000/10,000,000  162,482 infosets  6982 it/s
+3,000,000/10,000,000  162,483 infosets  6976 it/s
+4,000,000/10,000,000  162,484 infosets  6989 it/s
+5,000,000/10,000,000  162,489 infosets  6989 it/s
+6,000,000/10,000,000  162,491 infosets  6975 it/s
+7,000,000/10,000,000  162,494 infosets  6972 it/s
+8,000,000/10,000,000  162,494 infosets  6969 it/s
+9,000,000/10,000,000  162,495 infosets  6968 it/s
+10,000,000/10,000,000  162,497 infosets  6965 it/s
+
+done: +10,000,000 iterations (120,000,000 total) in 1436.0s
+infosets: 162,497 seen, 160,615 exported, 1,030 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 13/30 23:45
+resumed: 120,000,000 iterations, 162,497 infosets
+1,000,000/10,000,000  162,505 infosets  6855 it/s
+2,000,000/10,000,000  162,505 infosets  6869 it/s
+3,000,000/10,000,000  162,505 infosets  6887 it/s
+4,000,000/10,000,000  162,506 infosets  6875 it/s
+5,000,000/10,000,000  162,506 infosets  6878 it/s
+6,000,000/10,000,000  162,507 infosets  6879 it/s
+7,000,000/10,000,000  162,526 infosets  6878 it/s
+8,000,000/10,000,000  162,529 infosets  6874 it/s
+9,000,000/10,000,000  162,529 infosets  6876 it/s
+10,000,000/10,000,000  162,535 infosets  6874 it/s
+
+done: +10,000,000 iterations (130,000,000 total) in 1455.0s
+infosets: 162,535 seen, 160,736 exported, 993 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 14/30 00:09
+resumed: 130,000,000 iterations, 162,535 infosets
+1,000,000/10,000,000  162,536 infosets  6963 it/s
+2,000,000/10,000,000  162,556 infosets  6973 it/s
+3,000,000/10,000,000  162,556 infosets  6959 it/s
+4,000,000/10,000,000  162,556 infosets  6945 it/s
+5,000,000/10,000,000  162,565 infosets  6941 it/s
+6,000,000/10,000,000  162,565 infosets  6948 it/s
+7,000,000/10,000,000  162,566 infosets  6959 it/s
+8,000,000/10,000,000  162,567 infosets  6963 it/s
+9,000,000/10,000,000  162,573 infosets  6965 it/s
+10,000,000/10,000,000  162,574 infosets  6965 it/s
+
+done: +10,000,000 iterations (140,000,000 total) in 1436.0s
+infosets: 162,574 seen, 160,859 exported, 945 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 15/30 00:33
+resumed: 140,000,000 iterations, 162,574 infosets
+1,000,000/10,000,000  162,607 infosets  6850 it/s
+2,000,000/10,000,000  162,607 infosets  6855 it/s
+3,000,000/10,000,000  162,609 infosets  6856 it/s
+4,000,000/10,000,000  162,609 infosets  6863 it/s
+5,000,000/10,000,000  162,609 infosets  6869 it/s
+6,000,000/10,000,000  162,613 infosets  6858 it/s
+7,000,000/10,000,000  162,618 infosets  6855 it/s
+8,000,000/10,000,000  162,618 infosets  6857 it/s
+9,000,000/10,000,000  162,618 infosets  6857 it/s
+10,000,000/10,000,000  162,622 infosets  6857 it/s
+
+done: +10,000,000 iterations (150,000,000 total) in 1458.6s
+infosets: 162,622 seen, 160,942 exported, 925 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 16/30 00:57
+resumed: 150,000,000 iterations, 162,622 infosets
+1,000,000/10,000,000  162,625 infosets  6938 it/s
+2,000,000/10,000,000  162,626 infosets  6918 it/s
+3,000,000/10,000,000  162,627 infosets  6930 it/s
+4,000,000/10,000,000  162,627 infosets  6923 it/s
+5,000,000/10,000,000  162,627 infosets  6924 it/s
+6,000,000/10,000,000  162,634 infosets  6916 it/s
+7,000,000/10,000,000  162,634 infosets  6908 it/s
+8,000,000/10,000,000  162,634 infosets  6903 it/s
+9,000,000/10,000,000  162,634 infosets  6902 it/s
+10,000,000/10,000,000  162,634 infosets  6903 it/s
+
+done: +10,000,000 iterations (160,000,000 total) in 1448.9s
+infosets: 162,634 seen, 160,990 exported, 908 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 17/30 01:21
+resumed: 160,000,000 iterations, 162,634 infosets
+1,000,000/10,000,000  162,636 infosets  7038 it/s
+2,000,000/10,000,000  162,637 infosets  7028 it/s
+3,000,000/10,000,000  162,637 infosets  7022 it/s
+4,000,000/10,000,000  162,638 infosets  7024 it/s
+5,000,000/10,000,000  162,638 infosets  7023 it/s
+6,000,000/10,000,000  162,638 infosets  7015 it/s
+7,000,000/10,000,000  162,638 infosets  7009 it/s
+8,000,000/10,000,000  162,640 infosets  7008 it/s
+9,000,000/10,000,000  162,640 infosets  7008 it/s
+10,000,000/10,000,000  162,640 infosets  7006 it/s
+
+done: +10,000,000 iterations (170,000,000 total) in 1427.7s
+infosets: 162,640 seen, 161,018 exported, 891 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 18/30 01:45
+resumed: 170,000,000 iterations, 162,640 infosets
+1,000,000/10,000,000  162,640 infosets  6938 it/s
+2,000,000/10,000,000  162,643 infosets  6958 it/s
+3,000,000/10,000,000  162,643 infosets  6968 it/s
+4,000,000/10,000,000  162,643 infosets  6985 it/s
+5,000,000/10,000,000  162,643 infosets  6970 it/s
+6,000,000/10,000,000  162,645 infosets  6952 it/s
+7,000,000/10,000,000  162,647 infosets  6947 it/s
+8,000,000/10,000,000  162,650 infosets  6940 it/s
+9,000,000/10,000,000  162,650 infosets  6936 it/s
+10,000,000/10,000,000  162,650 infosets  6927 it/s
+
+done: +10,000,000 iterations (180,000,000 total) in 1444.0s
+infosets: 162,650 seen, 161,048 exported, 879 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 19/30 02:09
+resumed: 180,000,000 iterations, 162,650 infosets
+1,000,000/10,000,000  162,650 infosets  6807 it/s
+2,000,000/10,000,000  162,650 infosets  6803 it/s
+3,000,000/10,000,000  162,652 infosets  6794 it/s
+4,000,000/10,000,000  162,652 infosets  6793 it/s
+5,000,000/10,000,000  162,652 infosets  6784 it/s
+6,000,000/10,000,000  162,653 infosets  6783 it/s
+7,000,000/10,000,000  162,653 infosets  6786 it/s
+8,000,000/10,000,000  162,653 infosets  6784 it/s
+9,000,000/10,000,000  162,655 infosets  6787 it/s
+10,000,000/10,000,000  162,655 infosets  6787 it/s
+
+done: +10,000,000 iterations (190,000,000 total) in 1473.7s
+infosets: 162,655 seen, 161,081 exported, 865 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 20/30 02:34
+resumed: 190,000,000 iterations, 162,655 infosets
+1,000,000/10,000,000  162,655 infosets  6922 it/s
+2,000,000/10,000,000  162,659 infosets  6907 it/s
+3,000,000/10,000,000  162,659 infosets  6924 it/s
+4,000,000/10,000,000  162,659 infosets  6882 it/s
+5,000,000/10,000,000  162,659 infosets  6891 it/s
+6,000,000/10,000,000  162,659 infosets  6895 it/s
+7,000,000/10,000,000  162,661 infosets  6905 it/s
+8,000,000/10,000,000  162,663 infosets  6905 it/s
+9,000,000/10,000,000  162,663 infosets  6908 it/s
+10,000,000/10,000,000  162,663 infosets  6911 it/s
+
+done: +10,000,000 iterations (200,000,000 total) in 1447.3s
+infosets: 162,663 seen, 161,102 exported, 855 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 21/30 02:58
+resumed: 200,000,000 iterations, 162,663 infosets
+1,000,000/10,000,000  162,664 infosets  6906 it/s
+2,000,000/10,000,000  162,666 infosets  6916 it/s
+3,000,000/10,000,000  162,666 infosets  6906 it/s
+4,000,000/10,000,000  162,666 infosets  6901 it/s
+5,000,000/10,000,000  162,666 infosets  6905 it/s
+6,000,000/10,000,000  162,669 infosets  6912 it/s
+7,000,000/10,000,000  162,670 infosets  6914 it/s
+8,000,000/10,000,000  162,672 infosets  6909 it/s
+9,000,000/10,000,000  162,672 infosets  6899 it/s
+10,000,000/10,000,000  162,672 infosets  6894 it/s
+
+done: +10,000,000 iterations (210,000,000 total) in 1450.8s
+infosets: 162,672 seen, 161,123 exported, 848 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 22/30 03:22
+resumed: 210,000,000 iterations, 162,672 infosets
+1,000,000/10,000,000  162,673 infosets  6688 it/s
+2,000,000/10,000,000  162,683 infosets  6755 it/s
+3,000,000/10,000,000  162,683 infosets  6794 it/s
+4,000,000/10,000,000  162,689 infosets  6812 it/s
+5,000,000/10,000,000  162,689 infosets  6832 it/s
+6,000,000/10,000,000  162,689 infosets  6847 it/s
+7,000,000/10,000,000  162,691 infosets  6850 it/s
+8,000,000/10,000,000  162,691 infosets  6857 it/s
+9,000,000/10,000,000  162,696 infosets  6854 it/s
+10,000,000/10,000,000  162,696 infosets  6854 it/s
+
+done: +10,000,000 iterations (220,000,000 total) in 1459.2s
+infosets: 162,696 seen, 161,168 exported, 832 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 23/30 03:46
+resumed: 220,000,000 iterations, 162,696 infosets
+1,000,000/10,000,000  162,698 infosets  6991 it/s
+2,000,000/10,000,000  162,698 infosets  6983 it/s
+3,000,000/10,000,000  162,698 infosets  6986 it/s
+4,000,000/10,000,000  162,698 infosets  7000 it/s
+5,000,000/10,000,000  162,698 infosets  6998 it/s
+6,000,000/10,000,000  162,698 infosets  7001 it/s
+7,000,000/10,000,000  162,698 infosets  7008 it/s
+8,000,000/10,000,000  162,698 infosets  7013 it/s
+9,000,000/10,000,000  162,698 infosets  7019 it/s
+10,000,000/10,000,000  162,699 infosets  7016 it/s
+
+done: +10,000,000 iterations (230,000,000 total) in 1425.7s
+infosets: 162,699 seen, 161,192 exported, 821 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 24/30 04:10
+resumed: 230,000,000 iterations, 162,699 infosets
+1,000,000/10,000,000  162,699 infosets  6853 it/s
+2,000,000/10,000,000  162,699 infosets  6823 it/s
+3,000,000/10,000,000  162,701 infosets  6821 it/s
+4,000,000/10,000,000  162,701 infosets  6826 it/s
+5,000,000/10,000,000  162,701 infosets  6829 it/s
+6,000,000/10,000,000  162,701 infosets  6834 it/s
+7,000,000/10,000,000  162,702 infosets  6833 it/s
+8,000,000/10,000,000  162,703 infosets  6830 it/s
+9,000,000/10,000,000  162,703 infosets  6820 it/s
+10,000,000/10,000,000  162,703 infosets  6819 it/s
+
+done: +10,000,000 iterations (240,000,000 total) in 1466.9s
+infosets: 162,703 seen, 161,227 exported, 809 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 25/30 04:35
+resumed: 240,000,000 iterations, 162,703 infosets
+1,000,000/10,000,000  162,703 infosets  6782 it/s
+2,000,000/10,000,000  162,703 infosets  6784 it/s
+3,000,000/10,000,000  162,703 infosets  6783 it/s
+4,000,000/10,000,000  162,703 infosets  6795 it/s
+5,000,000/10,000,000  162,703 infosets  6800 it/s
+6,000,000/10,000,000  162,703 infosets  6805 it/s
+7,000,000/10,000,000  162,703 infosets  6816 it/s
+8,000,000/10,000,000  162,703 infosets  6822 it/s
+9,000,000/10,000,000  162,703 infosets  6824 it/s
+10,000,000/10,000,000  162,703 infosets  6826 it/s
+
+done: +10,000,000 iterations (250,000,000 total) in 1465.3s
+infosets: 162,703 seen, 161,243 exported, 797 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 26/30 04:59
+resumed: 250,000,000 iterations, 162,703 infosets
+1,000,000/10,000,000  162,703 infosets  6687 it/s
+2,000,000/10,000,000  162,703 infosets  6718 it/s
+3,000,000/10,000,000  162,703 infosets  6731 it/s
+4,000,000/10,000,000  162,703 infosets  6739 it/s
+5,000,000/10,000,000  162,704 infosets  6740 it/s
+6,000,000/10,000,000  162,704 infosets  6735 it/s
+7,000,000/10,000,000  162,704 infosets  6733 it/s
+8,000,000/10,000,000  162,704 infosets  6739 it/s
+9,000,000/10,000,000  162,705 infosets  6741 it/s
+10,000,000/10,000,000  162,705 infosets  6745 it/s
+
+done: +10,000,000 iterations (260,000,000 total) in 1482.9s
+infosets: 162,705 seen, 161,257 exported, 789 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 27/30 05:24
+resumed: 260,000,000 iterations, 162,705 infosets
+1,000,000/10,000,000  162,706 infosets  6973 it/s
+2,000,000/10,000,000  162,706 infosets  6966 it/s
+3,000,000/10,000,000  162,706 infosets  6971 it/s
+4,000,000/10,000,000  162,707 infosets  6971 it/s
+5,000,000/10,000,000  162,707 infosets  6977 it/s
+6,000,000/10,000,000  162,708 infosets  6976 it/s
+7,000,000/10,000,000  162,708 infosets  6980 it/s
+8,000,000/10,000,000  162,708 infosets  6980 it/s
+9,000,000/10,000,000  162,708 infosets  6982 it/s
+10,000,000/10,000,000  162,708 infosets  6982 it/s
+
+done: +10,000,000 iterations (270,000,000 total) in 1432.6s
+infosets: 162,708 seen, 161,271 exported, 781 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 28/30 05:48
+resumed: 270,000,000 iterations, 162,708 infosets
+1,000,000/10,000,000  162,708 infosets  7022 it/s
+2,000,000/10,000,000  162,709 infosets  7017 it/s
+3,000,000/10,000,000  162,709 infosets  7012 it/s
+4,000,000/10,000,000  162,709 infosets  7017 it/s
+5,000,000/10,000,000  162,709 infosets  7016 it/s
+6,000,000/10,000,000  162,709 infosets  7008 it/s
+7,000,000/10,000,000  162,709 infosets  7000 it/s
+8,000,000/10,000,000  162,709 infosets  6996 it/s
+9,000,000/10,000,000  162,709 infosets  6989 it/s
+10,000,000/10,000,000  162,709 infosets  6983 it/s
+
+done: +10,000,000 iterations (280,000,000 total) in 1432.3s
+infosets: 162,709 seen, 161,292 exported, 768 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 29/30 06:11
+resumed: 280,000,000 iterations, 162,709 infosets
+1,000,000/10,000,000  162,710 infosets  6698 it/s
+2,000,000/10,000,000  162,710 infosets  6695 it/s
+3,000,000/10,000,000  162,710 infosets  6708 it/s
+4,000,000/10,000,000  162,710 infosets  6722 it/s
+5,000,000/10,000,000  162,710 infosets  6732 it/s
+6,000,000/10,000,000  162,710 infosets  6738 it/s
+7,000,000/10,000,000  162,710 infosets  6740 it/s
+8,000,000/10,000,000  162,710 infosets  6742 it/s
+9,000,000/10,000,000  162,712 infosets  6751 it/s
+10,000,000/10,000,000  162,712 infosets  6753 it/s
+
+done: +10,000,000 iterations (290,000,000 total) in 1481.2s
+infosets: 162,712 seen, 161,316 exported, 757 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+--- chunk 30/30 06:36
+resumed: 290,000,000 iterations, 162,712 infosets
+1,000,000/10,000,000  162,712 infosets  6915 it/s
+2,000,000/10,000,000  162,712 infosets  6942 it/s
+3,000,000/10,000,000  162,712 infosets  6947 it/s
+4,000,000/10,000,000  162,712 infosets  6956 it/s
+5,000,000/10,000,000  162,712 infosets  6963 it/s
+6,000,000/10,000,000  162,712 infosets  6962 it/s
+7,000,000/10,000,000  162,712 infosets  6967 it/s
+8,000,000/10,000,000  162,712 infosets  6967 it/s
+9,000,000/10,000,000  162,712 infosets  6964 it/s
+10,000,000/10,000,000  162,712 infosets  6964 it/s
+
+done: +10,000,000 iterations (300,000,000 total) in 1436.2s
+infosets: 162,712 seen, 161,319 exported, 756 pruned
+table: strategy-hulimit.json 6.8MB, state: train-state.json 22.5MB
+=== training done Fri Aug 14 07:00:33 AM CEST 2026; grafting solved preflop
+grafted 1352 solved preflop spots onto the table (6.8MB)
+=== audit vs Cepheus
+    within 20% of solved play: 169/169 hands
+
+OVERALL mean divergence from the solved strategy: 0.0% across 1352 hand/sequence spots
+=== eval
+ladder table: 300,000,000 iterations, 161,319 infosets
+
+=== bb/100 over 20,000 fixed-blind hands (10/20, stacks reset, button alternates) ===
+  vs tag      +26.4 bb/100
+  vs rock     +29.8 bb/100
+  vs lag      +25.8 bb/100
+  vs station  +32.4 bb/100
+  vs maniac   +22.6 bb/100
+
+=== match win-rate over 200 rising-blind tournaments (1500 chips, levels every 8 hands) ===
+  vs tag      wins 70.5%  (avg 38 hands/match)
+  vs rock     wins 74.0%  (avg 39 hands/match)
+  vs lag      wins 63.5%  (avg 38 hands/match)
+  vs station  wins 73.5%  (avg 40 hands/match)
+  vs maniac   wins 66.0%  (avg 35 hands/match)
+=== overnight complete Fri Aug 14 07:00:39 AM CEST 2026
