@@ -94,6 +94,16 @@ our own CFR-trained table. `cepheus-compare.js` is the standing audit — it
 measured our pre-graft preflop at 24.7% mean divergence from solved play and
 the grafted table at 0.0%; `graft-cepheus.js` performs the graft.
 
+**The river is exact.** When a ladder hand reaches the river the abstraction
+retires: both players' ranges are tracked through the hand and the actual
+subgame is solved live ([`river-solver.js`](river-solver.js), range-vs-range
+vector CFR, ~110ms). The switch was earned by measurement, not taste:
+[`lbr.js`](lbr.js) implements Local Best Response (Lisý &amp; Bowling 2017) — a
+perfect-information exploiter that lower-bounds exploitability — and it beat
+the table-river bot for **+14.9 bb/100** but the solver-river bot for
+**−0.9 bb/100**: statistical zero. Hints, coach mode, and chart-room grading
+use the same exact solve on the river.
+
 The plumbing is landing bottom-up and is verifiable at each step:
 [`poker.js`](poker.js) speaks **fixed-limit** now (fixed bet units, big bets
 on turn/river, the four-bet cap — tested including a limit fuzz), and
