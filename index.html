@@ -367,6 +367,7 @@ import {
 } from './poker.js';
 import { decide, ROSTER } from './bots.js';
 import { ladderDecide, tableMix } from './ladder.js';
+import { riverMix } from './river-solver.js';
 import { glicko2, freshRating, LEVEL_RATING, LEVEL_RD } from './rating.js';
 
 const $ = (s) => document.querySelector(s);
@@ -735,6 +736,13 @@ function logLine(html) {
 const actionsEl = $('#actions');
 function clearActions() { actionsEl.innerHTML = ''; $('#hintbar').textContent = ''; }
 let hintedThisDecision = false;
+function teachMix(L) {
+  if (h.street === 3) {
+    const rm = riverMix(h, HERO, ladderTable, window.__riverCache);
+    if (rm) return { acts: rm.acts, probs: rm.probs, known: true, solved: true };
+  }
+  return tableMix(h, HERO, L, ladderTable);
+}
 function mixOnButtons(mix) {
   const target = { k: $('#b-call'), b: $('#b-raise'), f: $('#b-fold') };
   mix.acts.forEach((ac, i) => {
@@ -754,17 +762,18 @@ function heroTurn(L) {
   const wrap = document.createElement('div'); wrap.className = 'grp';
   let coachMix = null;
   if (mode === 'hu' && level >= 2 && ladderTable && h.limit && coachMode) {
-    const mix = tableMix(h, HERO, L, ladderTable);
+    const mix = teachMix(L);
     if (mix.known) { hintedThisDecision = true; coachMix = mix; }
   }
   if (mode === 'hu' && level >= 2 && ladderTable && h.limit && !coachMode) {
     const bHint = document.createElement('button'); bHint.className = 'qbtn'; bHint.textContent = '💡';
     bHint.title = 'Show the trained mix for this spot (hinted decisions are flagged and not counted in accuracy)';
     bHint.addEventListener('click', () => {
-      const mix = tableMix(h, HERO, L, ladderTable);
+      const mix = teachMix(L);
       if (!mix.known) { $('#hintbar').textContent = 'the chart has no line for this spot'; return; }
       hintedThisDecision = true;
       mixOnButtons(mix);
+      if (mix.solved) $('#hintbar').textContent = '🧭 exact river solve';
       bHint.disabled = true;
     });
     wrap.appendChild(bHint);
@@ -925,7 +934,7 @@ async function playHand() {
       status('');
       a = await heroTurn(L);
       if (mode === 'hu' && level >= 2 && ladderTable && h.limit) {
-        const mix = tableMix(h, HERO, L, ladderTable);
+        const mix = teachMix(L);
         if (mix.known) {
           const chosen = a.action === 'fold' ? 'f' : (a.action === 'bet' || a.action === 'raise') ? 'b' : 'k';
           const ci = mix.acts.indexOf(chosen);
