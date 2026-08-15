@@ -110,6 +110,35 @@ yardstick that makes two strangers' numbers comparable, as Stockfish levels
 do for lichess. Fixed in v1; recalibrating anchors from aggregate results
 is a v2 governance question, deliberately deferred.
 
+## 6b. Anchored careers — identity age as the anti-bot economics [CORE]
+
+Bots cannot be detected; they can only be made expensive. The one asset a
+bot farm cannot counterfeit is **time** — and the fleet already ships the
+machinery that proves it. The match chain (§4) feeds the tidegate anchor
+exactly as Tideholm trails do: periodically, the head of an identity's
+match chain is committed to Bitcoin. A career becomes **timestamped in
+blocks** — "the first 500 rated matches of this npub were anchored in
+March" is verifiable by strangers and impossible to backdate. Sybils stay
+free to create and worthless to keep: a naked trail is legible at a glance.
+
+**The profile is the product**: rated hands and when they were anchored,
+leak drifting downward the way humans learn, session rhythms, vouches
+(signed links from other trails), every line recomputable from public
+transcripts. Opponent *selection* replaces matchmaking — the home-game
+model: you play trails you can read, not strangers who might be GPUs.
+
+The residual hole, named plainly: an aged human account handed to a bot
+(poker's eternal account-selling problem). The trail narrows it to a
+**discontinuity against the identity's own anchored baseline** — leak
+collapsing to solver-level, rhythm changes — which the anomaly flag (§8)
+scores against history the identity cannot rewrite. Evading the flag means
+abandoning the trail; cheating costs the only asset that can't be re-bought.
+
+Combined with §2b and §8, the stack is: rake-free (protocol, no house),
+provably fair (commit-reveal + replayable transcripts), reputation accruing
+on Bitcoin time (anchored trails), and consent-based matching (the graph).
+Bots get economics, not detection theater.
+
 ## 7. Transport and the board
 
 Transcripts publish as signed nostr events. A static leaderboard page
@@ -136,7 +165,11 @@ Stated on the board itself:
 - Sybils are cheap (keys are free). The chain makes each identity's record
   internally honest; it cannot make identities scarce. Rankings therefore
   emphasize record depth (rating ± deviation, chain length, leak sample
-  size) over raw rating.
+  size, **anchor age** — §6b) over raw rating.
+- The anomaly flag also watches for **baseline discontinuities** on a single
+  identity (§6b): a career whose leak steps from human to solver-grade
+  between anchors is annotated as a probable handoff, judged against its
+  own anchored history.
 
 ## 9. The Daily Wardroom [v1 candidate]
 
