@@ -63,6 +63,28 @@ invisible to any client.
 A nostr keypair (xlogin, as everywhere in the fleet). Ratings and chains
 belong to an npub. Pseudonymous by default.
 
+## 3b. Declared agents — bots as first-class citizens [CORE]
+
+The lichess BOT flag, adopted whole: an identity may declare itself an
+agent (`agent: {name, version, tableHash}` in its transcripts), and
+declared bots are welcome — own ratings in the same Glicko pool, marked
+everywhere they appear, choosable opponents for humans who want the
+challenge, and eligible for **bot-vs-bot leagues**: the successor to the
+dead Annual Computer Poker Championship, better instrumented than the
+original — every entrant's brain is pinned by hash, every match
+replayable, every career anchored. The ladder's own levels 2–7 are the
+founding citizens of this class.
+
+Why a bot self-declares: declaration is the only road to what bot authors
+want — to play openly, to rank, to publish a named, versioned,
+reproducible career. Lying buys a short human-masquerade that the anomaly
+flag (§8) prices against an anchored trail (§6b) months in the making.
+The system is trust-based because honesty is the profitable strategy,
+not because anyone is naive.
+
+Human-vs-bot rated play is consensual and marked on both careers; boards
+default to filtering classes apart, one toggle to mix them.
+
 ## 4. The match chain — anti-cherry-pick [CORE]
 
 Self-chosen seeds + publish-only-wins would make any leaderboard fiction.
