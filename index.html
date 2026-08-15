@@ -983,7 +983,11 @@ async function playHand() {
           const pMax = Math.max(...mix.probs);
           const hinted = hintedThisDecision;
           const [glyph, word] = hinted ? ['🔍', 'hinted'] : gradeTag(pChosen, pMax);
-          const mixStr = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`).join(' · ');
+          const mixStr = mix.acts.map((ac, i) => {
+            const name = ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? (L.actions.includes('bet') ? 'bet' : 'raise') : 'fold';
+            const col = { fold: 'var(--danger)', check: '#3a9d54', call: '#3a9d54', bet: 'var(--gold)', raise: 'var(--gold)' }[name];
+            return `<span style="color:${col};opacity:.85">${name}</span> ${(mix.probs[i] * 100).toFixed(0)}%`;
+          }).join(' · ');
           // the leak meter: on solved rivers the EV of every action is exact,
           // so the cost of the chosen one is a real number in big blinds
           let evLossBb = null;
@@ -1066,7 +1070,7 @@ async function playHand() {
     winners: r.winners.map((w) => ({ seat: w.seat, amount: w.amount })),
     pot: r.pots.reduce((a, p) => a + p.amount, 0),
     log: h.log.filter((e) => ['fold', 'check', 'call', 'bet', 'raise', 'street', 'refund'].includes(e.ev))
-      .map((e) => ({ ev: e.ev, seat: e.seat, amount: e.amount, street: e.street })),
+      .map((e) => ({ ev: e.ev, seat: e.seat, amount: e.amount ?? e.to, street: e.street })),
   };
   const heroDealt = h.seats[HERO].hole !== null && !h.seats[HERO].out;
   const heroAtShowdown = heroDealt && r.showdown && !h.seats[HERO].folded;
@@ -1450,6 +1454,8 @@ $('#b-help').addEventListener('click', () => $('#m-help').classList.add('open'))
 document.querySelectorAll('.modal-wrap .x').forEach((x) => x.addEventListener('click', () => x.closest('.modal-wrap').classList.remove('open')));
 document.querySelectorAll('.modal-wrap').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); }));
 $('#b-again').addEventListener('click', () => { $('#m-trophy').classList.remove('open'); runTourney(); });
+const ACT_COL = { fold: 'var(--danger)', check: '#3a9d54', call: '#3a9d54', bet: 'var(--gold)', raise: 'var(--gold)' };
+const tintAct = (word, ev) => `<b style="color:${ACT_COL[ev]}">${word}</b>`;
 const tintCards = (arr) => arr.map((c) =>
   `<b style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</b>`).join(' ');
 function openReplay(n) {
@@ -1473,8 +1479,10 @@ function openReplay(n) {
       continue;
     }
     if (e.ev === 'refund') { lines.push(`<span style="color:var(--ink-soft)">${who(e.seat)} takes ${fmt(e.amount)} back</span>`); continue; }
-    const verb = e.ev === 'fold' ? 'folds' : e.ev === 'check' ? 'checks' : e.ev === 'call' ? 'calls' : e.ev === 'bet' ? `bets ${fmt(e.amount ?? '')}` : `raises to ${fmt(e.amount ?? '')}`;
-    let line = `${who(e.seat)} ${e.seat === HERO ? verb.replace(/s( |$)/, '$1') : verb}`.trim();
+    const me = e.seat === HERO;
+    const w = { fold: me ? 'fold' : 'folds', check: me ? 'check' : 'checks', call: me ? 'call' : 'calls', bet: me ? 'bet' : 'bets', raise: me ? 'raise to' : 'raises to' }[e.ev];
+    const amt = (e.ev === 'bet' || e.ev === 'raise' || e.ev === 'call') && e.amount ? ' ' + fmt(e.amount) : '';
+    let line = `${who(e.seat)} ${tintAct(w, e.ev)}${amt}`;
     if (e.seat === HERO) {
       const g = grades.find((x, gi) => !used.has(gi) && x.street === streetName && used.add(gi));
       if (g) {
@@ -1485,7 +1493,7 @@ function openReplay(n) {
     }
     lines.push(line);
   }
-  lines.push(`<div style="margin-top:8px;border-top:1px solid #ffffff18;padding-top:6px">${rec.winners.map((w) => `${who(w.seat)} wins ${fmt(w.amount)}`).join(' · ')}${rec.showdown ? '' : ' <span style="color:var(--ink-soft)">(no showdown)</span>'}</div>`);
+  lines.push(`<div style="margin-top:8px;border-top:1px solid #ffffff18;padding-top:6px">${rec.winners.map((w) => `${who(w.seat)} ${w.seat === HERO ? 'win' : 'wins'} ${fmt(w.amount)}`).join(' · ')}${rec.showdown ? '' : ' <span style="color:var(--ink-soft)">(no showdown)</span>'}</div>`);
   $('#replay-body').innerHTML = lines.map((l) => l.startsWith('<div') ? l : `<div>${l}</div>`).join('');
   $('#m-replay').classList.add('open');
 }
