@@ -623,10 +623,12 @@ function renderLeakChip() {
   if (!b || b.style.display === 'none') return;
   if (!leakLive) { b.textContent = '🎯'; b.classList.remove('on'); return; }
   b.classList.add('on');
+  // zero losses over N hands IS a leak of 0.0 — no river decisions yet
+  // means nothing lost yet, not "unknown"
   const rg = matchGrades.filter((g) => g.evLossBb != null);
   const hands = matchGrades.length ? Math.max(...matchGrades.map((g) => g.hand)) : 0;
-  const leak = rg.length && hands ? rg.reduce((a, g) => a + g.evLossBb, 0) / hands * 100 : null;
-  b.textContent = leak == null ? '🎯 —' : `🎯 ${leak.toFixed(1)} bb/100`;
+  const leak = hands ? rg.reduce((a, g) => a + g.evLossBb, 0) / hands * 100 : 0;
+  b.textContent = `🎯 ${leak.toFixed(1)} bb/100`;
 }
 let ratedMode = localStorage.getItem('wr.rated') === '1';
 function gradeTag(pChosen, pMax) {
@@ -1355,7 +1357,7 @@ $('#b-chart').addEventListener('click', () => {
   const riverGrades = matchGrades.filter((g) => g.evLossBb != null);
   const riverN = riverGrades.length;
   const handsSeen = matchGrades.length ? Math.max(...matchGrades.map((g) => g.hand)) : 0;
-  const leak100 = riverN && handsSeen ? riverGrades.reduce((a, g) => a + g.evLossBb, 0) / handsSeen * 100 : null;
+  const leak100 = handsSeen ? riverGrades.reduce((a, g) => a + g.evLossBb, 0) / handsSeen * 100 : null;
   $('#chart-summary').innerHTML = `
     <div><div style="font-size:26px;font-weight:800;color:var(--gold)">${acc === null ? '—' : acc + '%'}</div><div style="font-size:11px;color:var(--ink-soft)">accuracy</div></div>
     <div><div style="font-size:26px;font-weight:800">${n}</div><div style="font-size:11px;color:var(--ink-soft)">graded${hints ? ' (+' + hints + ' 🔍 hinted)' : ''}</div></div>
