@@ -299,6 +299,7 @@ body{
     <button id="b-level" title="Ladder level (heads-up)" style="display:none">Lv 1</button>
     <button id="b-rating" title="Your ladder rating" style="display:none">⚡ —</button>
     <button id="b-chart" title="The chart room — your decisions vs the trained mix" style="display:none">📋</button>
+    <button id="b-leak" title="Live leak meter: the match's running river leak (bb/100, exact EV), updating after every decision. Casual only. (key 5)" style="display:none">🎯</button>
     <button id="b-coach" title="Coach mode: show the trained mix on every decision (coached decisions don't count toward accuracy)" style="display:none">🎓</button>
     <button id="b-rated" title="Rated matches move your rating and disable in-game assistance; casual allows everything and never touches it" style="display:none">☕ casual</button>
     <button id="b-speed" title="Playback speed">1×</button>
@@ -616,6 +617,17 @@ let rating = freshRating();
 try { rating = Object.assign(freshRating(), JSON.parse(localStorage.getItem('wr.rating') || '{}')); } catch { /* fresh */ }
 let matchGrades = [];                 // this match's graded hero decisions
 let coachMode = localStorage.getItem('wr.coach') === '1';
+let leakLive = localStorage.getItem('wr.leak') === '1';
+function renderLeakChip() {
+  const b = $('#b-leak');
+  if (!b || b.style.display === 'none') return;
+  if (!leakLive) { b.textContent = '🎯'; b.classList.remove('on'); return; }
+  b.classList.add('on');
+  const rg = matchGrades.filter((g) => g.evLossBb != null);
+  const hands = matchGrades.length ? Math.max(...matchGrades.map((g) => g.hand)) : 0;
+  const leak = rg.length && hands ? rg.reduce((a, g) => a + g.evLossBb, 0) / hands * 100 : null;
+  b.textContent = leak == null ? '🎯 —' : `🎯 ${leak.toFixed(1)} bb/100`;
+}
 let ratedMode = localStorage.getItem('wr.rated') === '1';
 function gradeTag(pChosen, pMax) {
   const ratio = pMax > 0 ? pChosen / pMax : 1;
@@ -842,6 +854,12 @@ document.addEventListener('keydown', (e) => {
     if (b && b.style.display !== 'none') b.click();
     return;
   }
+  if (e.key === '5') {                       // toggle the live leak meter
+    if (ratedMode) { toastBad('no assistance in rated play'); return; }
+    const b = $('#b-leak');
+    if (b && b.style.display !== 'none') b.click();
+    return;
+  }
   if (!heroResolve) return;
   if (e.key === 'f' || e.key === '1') $('#b-fold')?.click();
   if (e.key === 'c' || e.key === ' ' || e.key === '2') { e.preventDefault(); $('#b-call')?.click(); }
@@ -966,6 +984,7 @@ async function playHand() {
             if (ci2 >= 0) evLossBb = (Math.max(...ev.evs) - ev.evs[ci2]) / h.bb;
           }
           matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted, evLossBb });
+          renderLeakChip();
           // rated play reveals nothing mid-match — the chart room settles up after
           if (!ratedMode) logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
         }
@@ -1236,11 +1255,13 @@ async function runTourney() {
   $('#b-chart').style.display = trainer ? '' : 'none';
   $('#b-coach').style.display = trainer && !ratedMode ? '' : 'none';
   $('#b-coach').classList.toggle('on', coachMode);
+  $('#b-leak').style.display = trainer && !ratedMode ? '' : 'none';
   $('#b-rated').style.display = trainer ? '' : 'none';
   $('#b-rated').textContent = ratedMode ? '🏅 rated' : '☕ casual';
   $('#b-rated').classList.toggle('on', ratedMode);
   renderRatingChip();
   matchGrades = [];
+  renderLeakChip();
   renderStatic(); renderTop();
   logBody.innerHTML = '';
   logLine(`<span class="seed">tournament committed: sha256(seed) = ${await sha256hex(tourneySeed)}</span>`);
@@ -1301,6 +1322,11 @@ $('#b-rated').addEventListener('click', () => {
   $('#b-rated').classList.toggle('on', ratedMode);
   if (running) { abortRun = true; status(`finishing this hand — then a ${ratedMode ? 'rated' : 'casual'} match…`); }
   else runTourney();
+});
+$('#b-leak').addEventListener('click', () => {
+  leakLive = !leakLive;
+  localStorage.setItem('wr.leak', leakLive ? '1' : '0');
+  renderLeakChip();
 });
 $('#b-coach').addEventListener('click', () => {
   coachMode = !coachMode;
