@@ -985,7 +985,8 @@ async function playHand() {
             const ci2 = ev ? ev.acts.indexOf(chosen) : -1;
             if (ci2 >= 0) evLossBb = (Math.max(...ev.evs) - ev.evs[ci2]) / h.bb;
           }
-          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted, evLossBb });
+          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted, evLossBb,
+            hole: h.seats[HERO].hole.map(cardName).join(' '), flop: h.board.slice(0, 3).map(cardName).join(' ') });
           renderLeakChip();
           // rated play reveals nothing mid-match — the chart room settles up after
           if (!ratedMode) logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
@@ -1294,12 +1295,43 @@ async function runTourney() {
     ratingLine = `<div class="place" style="margin-top:10px;border-top:1px solid #ffffff18;padding-top:10px">⚡ rating: <b>${before} → ${after}</b> (${d >= 0 ? '+' : ''}${d}) vs level ${level} (${LEVEL_RATING[level]})</div>`;
     renderRatingChip();
   }
+  // the scorecard: every graded hand, its cards, and the river EV it paid
+  let scorecard = '';
+  if (matchGrades.length) {
+    const tint = (str) => str ? str.split(' ').map((c) =>
+      `<span style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</span>`).join(' ') : '<span style="opacity:.4">—</span>';
+    const byHand = new Map();
+    for (const g of matchGrades) {
+      let r = byHand.get(g.hand);
+      if (!r) { r = { hole: g.hole, flop: '', loss: null, hinted: false }; byHand.set(g.hand, r); }
+      if (g.flop) r.flop = g.flop;
+      if (g.evLossBb != null) r.loss = (r.loss || 0) + g.evLossBb;
+      if (g.hinted) r.hinted = true;
+    }
+    const rows = [...byHand].sort((a, b) => a[0] - b[0]).map(([n, r]) => {
+      const col = r.loss == null ? 'var(--ink-soft)'
+        : r.loss < 0.05 ? '#3a9d54' : r.loss < 0.5 ? 'var(--gold)' : 'var(--danger)';
+      const lossTxt = r.loss == null ? '·' : r.loss < 0.005 ? '0.00' : '−' + r.loss.toFixed(2) + 'bb';
+      return `<div style="display:flex;gap:10px;align-items:baseline">
+        <span style="width:34px;color:var(--ink-soft)">#${n}</span>
+        <span style="width:64px">${tint(r.hole)}</span>
+        <span style="flex:1;color:var(--ink-soft)">${tint(r.flop)}</span>
+        <b style="color:${col}">${lossTxt}</b>${r.hinted ? ' 🔍' : ''}</div>`;
+    }).join('');
+    const rg = matchGrades.filter((g) => g.evLossBb != null);
+    const handsSeen = Math.max(...matchGrades.map((g) => g.hand));
+    const leak = handsSeen ? rg.reduce((a, g) => a + g.evLossBb, 0) / handsSeen * 100 : 0;
+    scorecard = `<div style="margin-top:10px;border-top:1px solid #ffffff18;padding-top:8px">
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:5px">SCORECARD — hand · hole · flop · river EV paid
+        <b style="float:right;color:${leak < 5 ? '#3a9d54' : 'var(--danger)'}">🎯 ${leak.toFixed(1)} bb/100</b></div>
+      <div style="max-height:30vh;overflow:auto;font-size:12.5px;line-height:1.7">${rows}</div></div>`;
+  }
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
   if (t.champion === HERO) { sWinBig(); setTimeout(() => blip(784, .8, .05), 600); } else sEnd();
   $('#trophy-title').textContent = t.champion === HERO ? 'You take the pennant!' : `${NAMES[t.champion]} takes the pennant`;
   $('#trophy-body').innerHTML = places.map((seat, i) =>
-    `<div class="place"><b>${medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('') + ratingLine;
+    `<div class="place"><b>${medals[i]}</b> ${AVAS[seat]} ${NAMES[seat]}${seat === HERO ? ' — you' : ''}</div>`).join('') + ratingLine + scorecard;
   $('#m-trophy').classList.add('open');
   running = false;
 }
