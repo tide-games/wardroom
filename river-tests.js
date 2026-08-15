@@ -68,5 +68,41 @@ function uniformRange(board) {
   ok(fold > 0.6, `4-high folds to a river bet most of the time (fold=${(fold * 100).toFixed(0)}%)`, JSON.stringify(facing));
 }
 
+{
+  // EV report: the leak meter's ground truth. At equilibrium, actions in the
+  // support have (near-)equal EV; dominated actions show real losses.
+  const R = uniformRange(board);
+  const kings = [C('Kh'), C('Kd')];
+  const solved = solveRiver({
+    board, myHole: kings, oppDead: kings,
+    myRange: R, oppRange: R,
+    potIn: 240, bb: 20, iAmFirst: true, iters: 150,
+  });
+  const ev = solved.evsAt('');
+  ok(ev !== null && ev.acts.length === 2, 'evsAt answers at the open');
+  const evK = ev.evs[ev.acts.indexOf('k')], evB = ev.evs[ev.acts.indexOf('b')];
+  // top set: both open actions are in the support -> EVs within a fraction
+  // of a bet of each other (CFR at 150 iters is approximate)
+  ok(Math.abs(evK - evB) < 40, `support actions near-equal EV (check ${evK.toFixed(1)} vs bet ${evB.toFixed(1)})`);
+  ok(Math.max(evK, evB) > 0, `top set has positive EV at the open (${Math.max(evK, evB).toFixed(1)})`);
+
+  const air = [C('3h'), C('4d')];
+  const R2 = uniformRange(board);
+  const solvedAir = solveRiver({
+    board, myHole: air, oppDead: air,
+    myRange: R2, oppRange: R2,
+    potIn: 240, bb: 20, iAmFirst: false, iters: 150,
+  });
+  const evAir = solvedAir.evsAt('b');
+  ok(evAir !== null && evAir.acts.length === 3, 'evsAt answers facing a bet');
+  const aF = evAir.evs[evAir.acts.indexOf('f')];
+  const aK = evAir.evs[evAir.acts.indexOf('k')];
+  // 4-high facing a bet: folding beats calling by a meaningful margin —
+  // the exact loss a station would be charged per bad call
+  ok(aF > aK + 10, `folding air beats calling (fold ${aF.toFixed(1)} vs call ${aK.toFixed(1)})`);
+  // fold EV equals surrendering the pot half: -(potIn/2) exactly
+  ok(Math.abs(aF - (-120)) < 1e-6, `fold EV is exactly -pot/2 (${aF.toFixed(2)})`);
+}
+
 if (fails) { console.error(`\n${fails} FAILURE(S)`); process.exit(1); }
 console.log('\nriver solver verified');

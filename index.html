@@ -368,7 +368,7 @@ import {
 } from './poker.js';
 import { decide, ROSTER } from './bots.js';
 import { ladderDecide, tableMix, setEquityEdges } from './ladder.js';
-import { riverMix } from './river-solver.js';
+import { riverMix, riverEvs } from './river-solver.js';
 import { glicko2, freshRating, LEVEL_RATING, LEVEL_RD } from './rating.js';
 
 const $ = (s) => document.querySelector(s);
@@ -957,8 +957,17 @@ async function playHand() {
           const hinted = hintedThisDecision;
           const [glyph, word] = hinted ? ['🔍', 'hinted'] : gradeTag(pChosen, pMax);
           const mixStr = mix.acts.map((ac, i) => `${ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? 'raise' : 'fold'} ${(mix.probs[i] * 100).toFixed(0)}%`).join(' · ');
-          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted });
-          logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}</span>`);
+          // the leak meter: on solved rivers the EV of every action is exact,
+          // so the cost of the chosen one is a real number in big blinds
+          let evLossBb = null;
+          if (mix.solved) {
+            const ev = riverEvs(h, HERO, ladderTable, window.__riverCache);
+            const ci2 = ev ? ev.acts.indexOf(chosen) : -1;
+            if (ci2 >= 0) evLossBb = (Math.max(...ev.evs) - ev.evs[ci2]) / h.bb;
+          }
+          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted, evLossBb });
+          // rated play reveals nothing mid-match — the chart room settles up after
+          if (!ratedMode) logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
         }
       }
     } else {
@@ -1309,19 +1318,35 @@ $('#b-coach').addEventListener('click', () => {
   }
 });
 $('#b-chart').addEventListener('click', () => {
+  if (ratedMode && running) { toastBad('the chart room opens after a rated match'); return; }
   const graded = matchGrades.filter((g) => !g.hinted);
   const n = graded.length;
   const acc = n ? Math.round(100 * graded.reduce((a, g) => a + Math.min(1, g.pMax > 0 ? g.pChosen / g.pMax : 1), 0) / n) : null;
   const hints = matchGrades.length - n;
   const counts = {};
   for (const g of graded) counts[g.word] = (counts[g.word] || 0) + 1;
+  document.getElementById('chart-streets')?.remove();
+  const riverGrades = matchGrades.filter((g) => g.evLossBb != null);
+  const riverN = riverGrades.length;
+  const handsSeen = matchGrades.length ? Math.max(...matchGrades.map((g) => g.hand)) : 0;
+  const leak100 = riverN && handsSeen ? riverGrades.reduce((a, g) => a + g.evLossBb, 0) / handsSeen * 100 : null;
   $('#chart-summary').innerHTML = `
     <div><div style="font-size:26px;font-weight:800;color:var(--gold)">${acc === null ? '—' : acc + '%'}</div><div style="font-size:11px;color:var(--ink-soft)">accuracy</div></div>
     <div><div style="font-size:26px;font-weight:800">${n}</div><div style="font-size:11px;color:var(--ink-soft)">graded${hints ? ' (+' + hints + ' 🔍 hinted)' : ''}</div></div>
     <div><div style="font-size:26px;font-weight:800">⚡ ${Math.round(rating.r)}</div><div style="font-size:11px;color:var(--ink-soft)">rating ±${Math.round(rating.rd)}</div></div>
-    <div><div style="font-size:26px;font-weight:800">${['book','mix','inaccuracy','off the chart'].map(w => counts[w] || 0).join('/')}</div><div style="font-size:11px;color:var(--ink-soft)">📖/⚖/✏/✘</div></div>`;
+    <div><div style="font-size:26px;font-weight:800">${['book','mix','inaccuracy','off the chart'].map(w => counts[w] || 0).join('/')}</div><div style="font-size:11px;color:var(--ink-soft)">📖/⚖/✏/✘</div></div>
+    <div><div style="font-size:26px;font-weight:800;color:${leak100 == null ? 'inherit' : leak100 < 5 ? 'var(--felt-line, #3a7d44)' : 'var(--danger)'}">${leak100 == null ? '—' : '−' + leak100.toFixed(1)}</div><div style="font-size:11px;color:var(--ink-soft)">river leak bb/100${riverN ? ' (' + riverN + ' exact)' : ''}</div></div>`;
+  const stOrder = ['preflop', 'flop', 'turn', 'river'];
+  const stLine = stOrder.map((st) => {
+    const ds = graded.filter((g) => g.street === st);
+    if (!ds.length) return null;
+    const on = ds.filter((g) => g.word === 'book' || g.word === 'mix').length;
+    return `${st} ${Math.round(100 * on / ds.length)}%`;
+  }).filter(Boolean).join(' · ');
+  if (stLine) $('#chart-summary').insertAdjacentHTML('afterend',
+    `<div id="chart-streets" style="font-size:12px;color:var(--ink-soft);margin:-6px 0 10px">on-book by street: ${stLine} <span style="opacity:.7">(pre/flop/turn are frequency proxies; river is exact EV)</span></div>`);
   $('#chart-list').innerHTML = matchGrades.length
-    ? [...matchGrades].reverse().map((g) => `<div>${g.glyph} hand ${g.hand} · ${g.street}: you ${g.action} — chart: ${g.mixStr}</div>`).join('')
+    ? [...matchGrades].reverse().map((g) => `<div>${g.glyph} hand ${g.hand} · ${g.street}: you ${g.action} — chart: ${g.mixStr}${g.evLossBb != null ? ` <b style="color:${g.evLossBb < 0.05 ? 'var(--felt-line, #3a7d44)' : 'var(--danger)'}">${g.evLossBb < 0.005 ? '±0.0' : '−' + g.evLossBb.toFixed(2)}bb</b>` : ''}</div>`).join('')
     : '<div>No graded decisions yet — play some ladder hands.</div>';
   $('#m-chart').classList.add('open');
 });

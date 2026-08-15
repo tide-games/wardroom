@@ -36,6 +36,18 @@ export function riverMix(h, seat, table, cache = {}) {
   } catch { return null; }
 }
 
+// Play-time EV entry for the leak meter: per-action EVs for `seat`'s current
+// river decision, in chips. null off-river or when the solve can't answer.
+export function riverEvs(h, seat, table, cache = {}) {
+  if (h.street !== 3) return null;
+  try {
+    riverMix(h, seat, table, cache);          // ensure the solve is cached
+    const solved = cache['rs' + seat];
+    if (!solved) return null;
+    return solved.evsAt(historyRounds(h)[3]);
+  } catch { return null; }
+}
+
 // ---------------------------------------------------------------- the tree
 // River betting, fixed limit: bet = 2×bb, cap 4 bets. k=check/call, b, f.
 function buildTree(bb) {
@@ -325,7 +337,111 @@ export function solveRiver({ board, myHole, oppDead, myRange, oppRange, potIn, b
   const myIdx = pairs.findIndex((pp) =>
     (pp[0] === myHole[0] && pp[1] === myHole[1]) || (pp[0] === myHole[1] && pp[1] === myHole[0]));
 
+  // ---------------------------------------------------------- EV report
+  // One expectimax pass under the AVERAGE strategies: forward reaches per
+  // node, backward utilities with the per-action vectors kept at every
+  // decision node. From these, evsAt() answers "what was each action worth
+  // for my actual hand" — the exact per-decision currency of the leak meter.
+  let evCache = null;
+  function buildEvReport() {
+    const avgStrat = new Map();
+    for (const [str, node] of nodes) {
+      if (!node.acts) continue;
+      const ss = S.get(str);
+      const A = node.acts.length;
+      const st = new Float64Array(N * A);
+      for (let p = 0; p < N; p++) {
+        let sum = 0;
+        if (ss) for (let a = 0; a < A; a++) sum += ss[p * A + a];
+        for (let a = 0; a < A; a++) st[p * A + a] = sum > 0 ? ss[p * A + a] / sum : 1 / A;
+      }
+      avgStrat.set(str, st);
+    }
+    const reach = new Map([['', [w0, w1]]]);
+    const byDepth = [...nodes.values()].sort((a, b) => a.str.length - b.str.length);
+    for (const node of byDepth) {
+      if (!node.acts) continue;
+      const [r0, r1] = reach.get(node.str);
+      const st = avgStrat.get(node.str);
+      const A = node.acts.length;
+      for (let a = 0; a < A; a++) {
+        let cr0 = r0, cr1 = r1;
+        if (node.actor === 0) {
+          cr0 = new Float64Array(N);
+          for (let p = 0; p < N; p++) cr0[p] = r0[p] * st[p * A + a];
+        } else {
+          cr1 = new Float64Array(N);
+          for (let p = 0; p < N; p++) cr1[p] = r1[p] * st[p * A + a];
+        }
+        reach.set(node.kids[node.acts[a]].str, [cr0, cr1]);
+      }
+    }
+    const perAction = new Map();          // str -> per-action utils for the node's actor
+    function evPass(node) {
+      const [r0, r1] = reach.get(node.str);
+      if (node.terminal === 'showdown') {
+        const u0 = new Float64Array(N), u1 = new Float64Array(N);
+        const M = half + node.s0;
+        showdownUtil(r1, M, u0);
+        showdownUtil(r0, M, u1);
+        return [u0, u1];
+      }
+      if (node.terminal === 'fold') {
+        const u0 = new Float64Array(N), u1 = new Float64Array(N);
+        if (node.folder === 1) {
+          foldUtil(r1, half + node.s1, u0);
+          foldUtil(r0, -(half + node.s1), u1);
+        } else {
+          foldUtil(r1, -(half + node.s0), u0);
+          foldUtil(r0, half + node.s0, u1);
+        }
+        return [u0, u1];
+      }
+      const st = avgStrat.get(node.str);
+      const A = node.acts.length;
+      const kidsU = node.acts.map((a) => evPass(node.kids[a]));
+      const u0 = new Float64Array(N), u1 = new Float64Array(N);
+      if (node.actor === 0) {
+        for (let p = 0; p < N; p++) {
+          let v = 0, w = 0;
+          for (let a = 0; a < A; a++) { v += st[p * A + a] * kidsU[a][0][p]; w += kidsU[a][1][p]; }
+          u0[p] = v; u1[p] = w;
+        }
+        perAction.set(node.str, kidsU.map((k) => k[0]));
+      } else {
+        for (let p = 0; p < N; p++) {
+          let v = 0, w = 0;
+          for (let a = 0; a < A; a++) { v += kidsU[a][0][p]; w += st[p * A + a] * kidsU[a][1][p]; }
+          u0[p] = v; u1[p] = w;
+        }
+        perAction.set(node.str, kidsU.map((k) => k[1]));
+      }
+      return [u0, u1];
+    }
+    evPass(nodes.get(''));
+    return { reach, perAction };
+  }
+
   return {
+    // per-action EVs (chips, pot-centered) for my actual hand at my node —
+    // null when it isn't my turn there. Differences are exact EV losses.
+    evsAt(nodeStr) {
+      const node = nodes.get(nodeStr);
+      if (!node || !node.acts) return null;
+      const myRole = iAmFirst ? 0 : 1;
+      if (node.actor !== myRole || myIdx < 0) return null;
+      if (!evCache) evCache = buildEvReport();
+      const pa = evCache.perAction.get(nodeStr);
+      const rr = evCache.reach.get(nodeStr);
+      if (!pa || !rr) return null;
+      const rOpp = myRole === 0 ? rr[1] : rr[0];
+      let total = 0;
+      const cardTotal = new Float64Array(NC);
+      for (let p = 0; p < N; p++) { total += rOpp[p]; cardTotal[c1[p]] += rOpp[p]; cardTotal[c2[p]] += rOpp[p]; }
+      const feas = total - (cardTotal[c1[myIdx]] + cardTotal[c2[myIdx]] - rOpp[myIdx]);
+      if (feas <= 1e-12) return null;
+      return { acts: node.acts, evs: pa.map((u) => u[myIdx] / feas) };
+    },
     // average mix for my actual hand at a river node ('' = first decision)
     mixAt(nodeStr) {
       const node = nodes.get(nodeStr);
