@@ -360,6 +360,12 @@ body{
   <button class="go" id="b-again">Deal a new tournament</button>
 </div></div>
 
+<div class="modal-wrap" id="m-replay"><div class="modal">
+  <button class="x">✕</button>
+  <h2 id="replay-title">Hand replay</h2>
+  <div id="replay-body" style="font-size:13px;line-height:1.75;max-height:60vh;overflow:auto;padding-right:14px;scrollbar-width:thin"></div>
+</div></div>
+
 <script type="module">
 import {
   cardName, rankOf, suitOf, SUITS, RANKS, evaluate,
@@ -616,6 +622,7 @@ let ladderTable = null, ladderMeta = null, ladderLoading = false;
 let rating = freshRating();
 try { rating = Object.assign(freshRating(), JSON.parse(localStorage.getItem('wr.rating') || '{}')); } catch { /* fresh */ }
 let matchGrades = [];                 // this match's graded hero decisions
+let matchHands = {};                  // this match's full hand records, for replay
 let coachMode = localStorage.getItem('wr.coach') === '1';
 let leakLive = localStorage.getItem('wr.leak') === '1';
 function renderLeakChip() {
@@ -1051,6 +1058,16 @@ async function playHand() {
   clearActions();
   renderTop();
   const r = h.result;
+  // the replay record: everything the scorecard needs to reopen this hand
+  matchHands[t.handIndex + 1] = {
+    n: t.handIndex + 1, sb: levelOf(t).sb, bb: h.bb,
+    holes: h.seats.map((x) => x.hole ? x.hole.map(cardName) : null),
+    board: h.board.map(cardName), showdown: r.showdown,
+    winners: r.winners.map((w) => ({ seat: w.seat, amount: w.amount })),
+    pot: r.pots.reduce((a, p) => a + p.amount, 0),
+    log: h.log.filter((e) => ['fold', 'check', 'call', 'bet', 'raise', 'street', 'refund'].includes(e.ev))
+      .map((e) => ({ ev: e.ev, seat: e.seat, amount: e.amount, street: e.street })),
+  };
   const heroDealt = h.seats[HERO].hole !== null && !h.seats[HERO].out;
   const heroAtShowdown = heroDealt && r.showdown && !h.seats[HERO].folded;
   const heroWon = r.winners.some((w) => w.seat === HERO);
@@ -1264,6 +1281,7 @@ async function runTourney() {
   $('#b-rated').classList.toggle('on', ratedMode);
   renderRatingChip();
   matchGrades = [];
+  matchHands = {};
   renderLeakChip();
   renderStatic(); renderTop();
   logBody.innerHTML = '';
@@ -1312,11 +1330,12 @@ async function runTourney() {
       const col = r.loss == null ? 'var(--ink-soft)'
         : r.loss < 0.05 ? '#3a9d54' : r.loss < 0.5 ? 'var(--gold)' : 'var(--danger)';
       const lossTxt = r.loss == null ? '·' : r.loss < 0.005 ? '0.00' : '−' + r.loss.toFixed(2) + 'bb';
-      return `<div style="display:flex;gap:10px;align-items:baseline">
+      const click = matchHands[n] ? `data-replay="${n}" style="cursor:pointer" title="click to replay this hand"` : '';
+      return `<div class="score-row" ${click}><div style="display:flex;gap:10px;align-items:baseline;pointer-events:none">
         <span style="width:34px;color:var(--ink-soft)">#${n}</span>
         <span style="width:64px">${tint(r.hole)}</span>
         <span style="flex:1;color:var(--ink-soft)">${tint(r.flop)}</span>
-        <b style="color:${col};min-width:62px;text-align:right">${lossTxt}</b>${r.hinted ? ' 🔍' : ''}</div>`;
+        <b style="color:${col};min-width:62px;text-align:right">${lossTxt}</b>${r.hinted ? ' 🔍' : ''}</div></div>`;
     }).join('');
     const rg = matchGrades.filter((g) => g.evLossBb != null);
     const handsSeen = Math.max(...matchGrades.map((g) => g.hand));
@@ -1431,6 +1450,49 @@ $('#b-help').addEventListener('click', () => $('#m-help').classList.add('open'))
 document.querySelectorAll('.modal-wrap .x').forEach((x) => x.addEventListener('click', () => x.closest('.modal-wrap').classList.remove('open')));
 document.querySelectorAll('.modal-wrap').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); }));
 $('#b-again').addEventListener('click', () => { $('#m-trophy').classList.remove('open'); runTourney(); });
+const tintCards = (arr) => arr.map((c) =>
+  `<b style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</b>`).join(' ');
+function openReplay(n) {
+  const rec = matchHands[n];
+  if (!rec) return;
+  $('#replay-title').textContent = `Hand #${n} — blinds ${rec.sb}/${rec.bb}`;
+  const who = (seat) => seat === HERO ? 'You' : NAMES[seat];
+  const grades = matchGrades.filter((g) => g.hand === n);
+  const used = new Set();
+  const lines = [];
+  lines.push(rec.holes.map((hl, i) => hl ? `${AVAS[i]} ${who(i)}: ${tintCards(hl)}` : null)
+    .filter(Boolean).join(' &nbsp;·&nbsp; '));
+  let streetName = 'preflop';
+  lines.push(`<div style="margin-top:6px;color:var(--gold);font-weight:700">PREFLOP</div>`);
+  const bCount = { flop: 3, turn: 4, river: 5 };
+  for (const e of rec.log) {
+    if (e.ev === 'street') {
+      streetName = e.street;
+      const nCards = bCount[e.street];
+      if (nCards) lines.push(`<div style="margin-top:6px;color:var(--gold);font-weight:700">${e.street.toUpperCase()} &nbsp;${tintCards(rec.board.slice(0, nCards))}</div>`);
+      continue;
+    }
+    if (e.ev === 'refund') { lines.push(`<span style="color:var(--ink-soft)">${who(e.seat)} takes ${fmt(e.amount)} back</span>`); continue; }
+    const verb = e.ev === 'fold' ? 'folds' : e.ev === 'check' ? 'checks' : e.ev === 'call' ? 'calls' : e.ev === 'bet' ? `bets ${fmt(e.amount ?? '')}` : `raises to ${fmt(e.amount ?? '')}`;
+    let line = `${who(e.seat)} ${e.seat === HERO ? verb.replace(/s( |$)/, '$1') : verb}`.trim();
+    if (e.seat === HERO) {
+      const g = grades.find((x, gi) => !used.has(gi) && x.street === streetName && used.add(gi));
+      if (g) {
+        const cost = g.evLossBb != null
+          ? ` <b style="color:${g.evLossBb < 0.05 ? '#3a9d54' : g.evLossBb < 0.5 ? 'var(--gold)' : 'var(--danger)'}">${g.evLossBb < 0.005 ? '±0.0' : '−' + g.evLossBb.toFixed(2) + 'bb'}</b>` : '';
+        line += ` <span style="color:var(--ink-soft);font-size:12px">— chart: ${g.mixStr}</span>${cost}${g.hinted ? ' 🔍' : ''}`;
+      }
+    }
+    lines.push(line);
+  }
+  lines.push(`<div style="margin-top:8px;border-top:1px solid #ffffff18;padding-top:6px">${rec.winners.map((w) => `${who(w.seat)} wins ${fmt(w.amount)}`).join(' · ')}${rec.showdown ? '' : ' <span style="color:var(--ink-soft)">(no showdown)</span>'}</div>`);
+  $('#replay-body').innerHTML = lines.map((l) => l.startsWith('<div') ? l : `<div>${l}</div>`).join('');
+  $('#m-replay').classList.add('open');
+}
+$('#trophy-body').addEventListener('click', (e) => {
+  const row = e.target.closest('[data-replay]');
+  if (row) openReplay(Number(row.dataset.replay));
+});
 
 $('#b-hu').textContent = mode === 'hu' ? '👥 6-max' : '⚔ 1v1';
 // roster in help
