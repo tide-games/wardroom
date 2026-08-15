@@ -3,3 +3,4 @@ train-state-eq.json
 strategy-eq.json
 node_modules/
 *.log
+strategy-eq-grafted.json

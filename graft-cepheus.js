@@ -4,7 +4,7 @@
 // per-hand preflop frequencies for every preflop betting sequence. Preflop is
 // where our abstraction diverges most from solved play — and their data is
 // exact there, so the ladder plays the solved game's preflop and our trained
-// postflop. run: node graft-cepheus.js <cepheus-data-dir>
+// postflop. run: node graft-cepheus.js <cepheus-data-dir> [table.json]
 import fs from 'node:fs';
 
 const DIR = process.argv[2];
@@ -35,7 +35,8 @@ function preflopIndexOf(cards) {
   return 13 + (suited ? 0 : 78) + off;
 }
 
-const ours = JSON.parse(fs.readFileSync('strategy-hulimit.json', 'utf8'));
+const TABLE_PATH = process.argv[3] || 'strategy-hulimit.json';
+const ours = JSON.parse(fs.readFileSync(TABLE_PATH, 'utf8'));
 let grafted = 0;
 for (const [hist, file, shape] of SEQS) {
   const raw = fs.readFileSync(`${DIR}/${file}.js`, 'utf8');
@@ -61,5 +62,5 @@ ours.cepheusPreflop = {
   grafted,
   source: 'poker.srv.ualberta.ca (Bowling et al., "Heads-up limit hold\'em poker is solved", Science 347(6218), 2015)',
 };
-fs.writeFileSync('strategy-hulimit.json', JSON.stringify(ours));
-console.log(`grafted ${grafted} solved preflop spots onto the table (${(fs.statSync('strategy-hulimit.json').size / 1e6).toFixed(1)}MB)`);
+fs.writeFileSync(TABLE_PATH, JSON.stringify(ours));
+console.log(`grafted ${grafted} solved preflop spots onto ${TABLE_PATH} (${(fs.statSync(TABLE_PATH).size / 1e6).toFixed(1)}MB)`);

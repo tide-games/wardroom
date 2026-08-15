@@ -4,13 +4,17 @@
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { newHand, legal, act, rngFromSeed } from './poker.js';
-import { ladderDecide } from './ladder.js';
+import { ladderDecide, setEquityEdges, setEquityEnabled } from './ladder.js';
 
 const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 const A = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const B = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 const HANDS = Number(process.argv[4] || 100000);
-console.log(`A: ${A.iterations.toLocaleString()} iters   B: ${B.iterations.toLocaleString()} iters   ${HANDS.toLocaleString()} hands`);
+// a table that carries quantile edges plays under its own abstraction; the
+// gate flips per decision so both keyspaces stay honest in one process
+const eqA = !!A.edges, eqB = !!B.edges;
+if (eqA || eqB) setEquityEdges(A.edges || B.edges);
+console.log(`A: ${A.iterations.toLocaleString()} iters${eqA ? ' (ehs2)' : ''}   B: ${B.iterations.toLocaleString()} iters${eqB ? ' (ehs2)' : ''}   ${HANDS.toLocaleString()} hands`);
 
 let won = 0;
 const rng = rngFromSeed(sha256('ab'));
@@ -24,6 +28,7 @@ for (let i = 0; i < HANDS; i++) {
   while (h.phase === 'act' && guard++ < 200) {
     const L = legal(h);
     const table = L.seat === aSeat ? A.table : B.table;
+    setEquityEnabled(L.seat === aSeat ? eqA : eqB);
     act(h, ladderDecide(h, L.seat, L, table, 0, rng));
   }
   won += h.seats[aSeat].stack - 2000;

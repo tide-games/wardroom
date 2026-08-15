@@ -6,13 +6,16 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { newHand, legal, act, seatView, rngFromSeed, LEVELS } from './poker.js';
 import { decide } from './bots.js';
-import { ladderDecide } from './ladder.js';
+import { ladderDecide, setEquityEdges } from './ladder.js';
 
 const sha256 = (s) => createHash('sha256').update(s).digest('hex');
-const HANDS = Number(process.argv[2] || 20000);
-const MATCHES = Number(process.argv[3] || 300);
+const nums = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
+const HANDS = Number(nums[0] || 20000);
+const MATCHES = Number(nums[1] || 300);
 
-const meta = JSON.parse(fs.readFileSync('strategy-hulimit.json', 'utf8'));
+const tablePath = process.argv.slice(2).find((a) => a.endsWith('.json')) || 'strategy-hulimit.json';
+const meta = JSON.parse(fs.readFileSync(tablePath, 'utf8'));
+if (meta.edges) setEquityEdges(meta.edges);
 const TABLE = meta.table;
 console.log(`ladder table: ${meta.iterations.toLocaleString()} iterations, ${meta.infosets.toLocaleString()} infosets\n`);
 

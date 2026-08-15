@@ -89,12 +89,14 @@ export const SAMPLES = { 1: [20, 15], 2: [14, 15] };
 // ---------------------------------------------------------------- buckets
 // armed with quantile edges (from build-buckets.js); cached per canon class
 let EDGES = null;                 // {1: Float64Array, 2: Float64Array}
-const cache = new Map();
+let ENABLED = true;               // per-decision gate: lets one process host an
+const cache = new Map();          // equity table and a legacy table side by side
 export function setEquityEdges(edges) {
   EDGES = edges ? { 1: Float64Array.from(edges.flop), 2: Float64Array.from(edges.turn) } : null;
   cache.clear();
 }
-export const equityArmed = () => EDGES !== null;
+export function setEquityEnabled(on) { ENABLED = !!on; }
+export const equityArmed = () => EDGES !== null && ENABLED;
 
 export function eqBucket(street, hole, board) {
   const key = street + canonKey(hole, board);

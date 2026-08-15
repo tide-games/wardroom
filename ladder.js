@@ -2,8 +2,8 @@
 // same code buckets hands for the trainer (node) and the ladder bot
 // (browser), so the strategy table always means what it meant in training.
 import { rankOf, suitOf, evaluate } from './poker.js';
-import { eqBucket, equityArmed, setEquityEdges } from './equity-buckets.js';
-export { setEquityEdges };
+import { eqBucket, equityArmed, setEquityEdges, setEquityEnabled } from './equity-buckets.js';
+export { setEquityEdges, setEquityEnabled };
 
 // ---------------------------------------------------------------- preflop
 // Canonical 169: pairs, suited, offsuit — exact, no abstraction loss.

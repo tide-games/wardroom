@@ -9,14 +9,16 @@
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { newHand, legal, act, rngFromSeed, evaluate } from './poker.js';
-import { ladderDecide, streetBucket } from './ladder.js';
+import { ladderDecide, streetBucket, setEquityEdges } from './ladder.js';
 import { riverMix } from './river-solver.js';
 
 const sha256 = (s) => createHash('sha256').update(s).digest('hex');
-const T = JSON.parse(fs.readFileSync('strategy-hulimit.json', 'utf8'));
-const HANDS = Number(process.argv[2] || 2000);
+const tablePath = process.argv.slice(2).find((a) => a.endsWith('.json')) || 'strategy-hulimit.json';
+const T = JSON.parse(fs.readFileSync(tablePath, 'utf8'));
+if (T.edges) setEquityEdges(T.edges);
+const HANDS = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) || 2000);
 const BOT_RIVER_SOLVER = process.argv.includes('river');
-console.log(`LBR vs ${T.iterations.toLocaleString()}-iteration table${T.cepheusPreflop ? ' + solved preflop' : ''}${BOT_RIVER_SOLVER ? ' + river solver' : ''}, ${HANDS} hands`);
+console.log(`LBR vs ${tablePath} ${T.iterations.toLocaleString()}-iteration table${T.cepheusPreflop ? ' + solved preflop' : ''}${BOT_RIVER_SOLVER ? ' + river solver' : ''}, ${HANDS} hands`);
 
 // all 1326 hole pairs
 const ALL = [];
