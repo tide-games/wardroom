@@ -1316,7 +1316,7 @@ async function runTourney() {
         <span style="width:34px;color:var(--ink-soft)">#${n}</span>
         <span style="width:64px">${tint(r.hole)}</span>
         <span style="flex:1;color:var(--ink-soft)">${tint(r.flop)}</span>
-        <b style="color:${col}">${lossTxt}</b>${r.hinted ? ' 🔍' : ''}</div>`;
+        <b style="color:${col};min-width:62px;text-align:right">${lossTxt}</b>${r.hinted ? ' 🔍' : ''}</div>`;
     }).join('');
     const rg = matchGrades.filter((g) => g.evLossBb != null);
     const handsSeen = Math.max(...matchGrades.map((g) => g.hand));
@@ -1324,7 +1324,7 @@ async function runTourney() {
     scorecard = `<div style="margin-top:10px;border-top:1px solid #ffffff18;padding-top:8px">
       <div style="font-size:11px;color:var(--ink-soft);margin-bottom:5px">SCORECARD — hand · hole · flop · river EV paid
         <b style="float:right;color:${leak < 5 ? '#3a9d54' : 'var(--danger)'}">🎯 ${leak.toFixed(1)} bb/100</b></div>
-      <div style="max-height:30vh;overflow:auto;font-size:12.5px;line-height:1.7">${rows}</div></div>`;
+      <div style="max-height:52vh;overflow:auto;font-size:12.5px;line-height:1.7;padding-right:16px;scrollbar-width:thin">${rows}</div></div>`;
   }
   const places = placings(t);
   const medals = ['🏆', '🥈', '🥉', '4th', '5th', '6th'];
