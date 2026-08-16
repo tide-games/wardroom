@@ -362,7 +362,7 @@ body{
 
 <div class="modal-wrap" id="m-replay"><div class="modal">
   <button class="x">✕</button>
-  <h2 id="replay-title">Hand replay</h2>
+  <h2 id="replay-title">Hand replay <button id="b-copyhand" class="qbtn" title="Copy this hand as text — paste it to any analyst, human or AI" style="font-size:12px;vertical-align:2px">📋 copy</button></h2>
   <div id="replay-body" style="font-size:13px;line-height:1.75;max-height:60vh;overflow:auto;padding-right:14px;scrollbar-width:thin"></div>
 </div></div>
 
@@ -1458,45 +1458,64 @@ const ACT_COL = { fold: 'var(--danger)', check: '#3a9d54', call: '#3a9d54', bet:
 const tintAct = (word, ev) => `<b style="color:${ACT_COL[ev]}">${word}</b>`;
 const tintCards = (arr) => arr.map((c) =>
   `<b style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</b>`).join(' ');
+let replayText = '';
 function openReplay(n) {
   const rec = matchHands[n];
   if (!rec) return;
-  $('#replay-title').textContent = `Hand #${n} — blinds ${rec.sb}/${rec.bb}`;
+  $('#replay-title').childNodes[0].textContent = `Hand #${n} — blinds ${rec.sb}/${rec.bb} `;
+  const txt = [];
+  txt.push(`The Wardroom — heads-up fixed-limit hold'em, hand #${n}, blinds ${rec.sb}/${rec.bb}`);
   const who = (seat) => seat === HERO ? 'You' : NAMES[seat];
   const grades = matchGrades.filter((g) => g.hand === n);
   const used = new Set();
   const lines = [];
   lines.push(rec.holes.map((hl, i) => hl ? `${AVAS[i]} ${who(i)}: ${tintCards(hl)}` : null)
     .filter(Boolean).join(' &nbsp;·&nbsp; '));
+  txt.push(rec.holes.map((hl, i) => hl ? `${who(i)}: ${hl.join(' ')}` : null).filter(Boolean).join('  ·  '));
   let streetName = 'preflop';
   lines.push(`<div style="margin-top:6px;color:var(--gold);font-weight:700">PREFLOP</div>`);
+  txt.push('', 'PREFLOP');
   const bCount = { flop: 3, turn: 4, river: 5 };
   for (const e of rec.log) {
     if (e.ev === 'street') {
       streetName = e.street;
       const nCards = bCount[e.street];
-      if (nCards) lines.push(`<div style="margin-top:6px;color:var(--gold);font-weight:700">${e.street.toUpperCase()} &nbsp;${tintCards(rec.board.slice(0, nCards))}</div>`);
+      if (nCards) { lines.push(`<div style="margin-top:6px;color:var(--gold);font-weight:700">${e.street.toUpperCase()} &nbsp;${tintCards(rec.board.slice(0, nCards))}</div>`); txt.push('', `${e.street.toUpperCase()}  ${rec.board.slice(0, nCards).join(' ')}`); }
       continue;
     }
-    if (e.ev === 'refund') { lines.push(`<span style="color:var(--ink-soft)">${who(e.seat)} takes ${fmt(e.amount)} back</span>`); continue; }
+    if (e.ev === 'refund') { lines.push(`<span style="color:var(--ink-soft)">${who(e.seat)} takes ${fmt(e.amount)} back</span>`); txt.push(`${who(e.seat)} takes ${e.amount} back (uncalled)`); continue; }
     const me = e.seat === HERO;
     const w = { fold: me ? 'fold' : 'folds', check: me ? 'check' : 'checks', call: me ? 'call' : 'calls', bet: me ? 'bet' : 'bets', raise: me ? 'raise to' : 'raises to' }[e.ev];
     const amt = (e.ev === 'bet' || e.ev === 'raise' || e.ev === 'call') && e.amount ? ' ' + fmt(e.amount) : '';
     let line = `${who(e.seat)} ${tintAct(w, e.ev)}${amt}`;
+    let tline = `${who(e.seat)} ${w}${amt}`;
     if (e.seat === HERO) {
       const g = grades.find((x, gi) => !used.has(gi) && x.street === streetName && used.add(gi));
       if (g) {
         const cost = g.evLossBb != null
           ? ` <b style="color:${g.evLossBb < 0.05 ? '#3a9d54' : g.evLossBb < 0.5 ? 'var(--gold)' : 'var(--danger)'}">${g.evLossBb < 0.005 ? '±0.0' : '−' + g.evLossBb.toFixed(2) + 'bb'}</b>` : '';
         line += ` <span style="color:var(--ink-soft);font-size:12px">— chart: ${g.mixStr}</span>${cost}${g.hinted ? ' 🔍' : ''}`;
+        const plainMix = g.mixStr.replace(/<[^>]+>/g, '');
+        tline += `   [reference mix: ${plainMix}${g.evLossBb != null ? ` | EV loss of chosen action: ${g.evLossBb < 0.005 ? '0.00' : g.evLossBb.toFixed(2)} bb (exact river solve)` : ''}${g.hinted ? ' | hint was shown' : ''}]`;
       }
     }
     lines.push(line);
+    txt.push(tline);
   }
   lines.push(`<div style="margin-top:8px;border-top:1px solid #ffffff18;padding-top:6px">${rec.winners.map((w) => `${who(w.seat)} ${w.seat === HERO ? 'win' : 'wins'} ${fmt(w.amount)}`).join(' · ')}${rec.showdown ? '' : ' <span style="color:var(--ink-soft)">(no showdown)</span>'}</div>`);
+  txt.push('', rec.winners.map((w) => `${who(w.seat)} ${w.seat === HERO ? 'win' : 'wins'} ${w.amount}`).join(' · ') + (rec.showdown ? ' at showdown' : ' (no showdown)'));
+  txt.push('', 'Notes: "chart"/"reference mix" is a near-equilibrium strategy for this game (trained CFR, solved preflop, exact river subgame solves). EV losses are measured against it.');
+  replayText = txt.join('\n');
   $('#replay-body').innerHTML = lines.map((l) => l.startsWith('<div') ? l : `<div>${l}</div>`).join('');
   $('#m-replay').classList.add('open');
 }
+$('#b-copyhand').addEventListener('click', async (e) => {
+  try {
+    await navigator.clipboard.writeText(replayText);
+    e.target.textContent = '✓ copied';
+    setTimeout(() => { e.target.textContent = '📋 copy'; }, 1400);
+  } catch { toastBad('clipboard blocked — select the text instead'); }
+});
 $('#trophy-body').addEventListener('click', (e) => {
   const row = e.target.closest('[data-replay]');
   if (row) openReplay(Number(row.dataset.replay));
