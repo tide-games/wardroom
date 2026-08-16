@@ -1514,9 +1514,12 @@ async function tableReplay(n) {
     try { act(hh, a); } catch {}
   };
   let pos = 0, playing = true, alive = true;
+  const caption = document.createElement('div');
+  caption.id = 'rp-caption';
+  caption.style.cssText = 'width:100%;text-align:center;margin-bottom:8px;font-size:14px;color:#e8e2d4;background:rgba(20,16,12,.82);border:1px solid #ffffff22;border-radius:8px;padding:7px 16px;line-height:1.5';
   const statusFor = () => {
     const done = pos >= steps.length;
-    status(`⏪ hand #${n} · ${pos}/${steps.length}  ${pos ? steps[pos - 1].text : 'the deal'}${done && h.result ? `  ·  ${rec.winners.map((w) => `${w.seat === HERO ? 'you win' : NAMES[w.seat] + ' wins'} ${fmt(w.amount)}`).join(' · ')}` : ''}`);
+    caption.innerHTML = `⏪ <b>hand #${n}</b> · ${pos}/${steps.length} &nbsp; ${pos ? steps[pos - 1].text : 'the deal'}${done && h.result ? ` &nbsp;·&nbsp; <b>${rec.winners.map((w) => `${w.seat === HERO ? 'you win' : NAMES[w.seat] + ' wins'} ${fmt(w.amount)}`).join(' · ')}</b>` : ''}`;
   };
   const renderAt = () => {                    // full rebuild: powers stepping back
     h = freshHand();
@@ -1554,6 +1557,7 @@ async function tableReplay(n) {
   mk('rp-play', '⏸', 'play / pause (space)').addEventListener('click', () => replayCtl.toggle());
   mk('rp-fwd', '▶', 'next action (→)').addEventListener('click', () => replayCtl.fwd());
   mk('rp-exit', '✕ done', 'back to the scorecard (esc)').addEventListener('click', () => replayCtl.exit());
+  actionsEl.appendChild(caption);
   actionsEl.appendChild(bar);
   renderAt();
   await sleep(900);
