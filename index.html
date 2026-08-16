@@ -362,7 +362,10 @@ body{
 
 <div class="modal-wrap" id="m-replay"><div class="modal">
   <button class="x">✕</button>
-  <h2 id="replay-title">Hand replay <button id="b-copyhand" class="qbtn" title="Copy this hand as text — paste it to any analyst, human or AI" style="font-size:12px;vertical-align:2px">📋 copy</button></h2>
+  <h2 id="replay-title">Hand replay <span style="float:right;margin-right:34px;display:inline-flex;gap:8px">
+    <button id="b-tablereplay" title="Watch this hand replayed on the table, both hands face up" style="font-size:13px;font-weight:700;background:#3a6d4a;color:#f3efe6;border:none;border-radius:6px;padding:4px 14px;cursor:pointer">▶ watch</button>
+    <button id="b-copyhand" title="Copy this hand as text — paste it to any analyst, human or AI" style="font-size:13px;font-weight:700;background:var(--gold);color:#1c1812;border:none;border-radius:6px;padding:4px 14px;cursor:pointer">📋 copy</button>
+  </span></h2>
   <div id="replay-body" style="font-size:13px;line-height:1.75;max-height:60vh;overflow:auto;padding-right:14px;scrollbar-width:thin"></div>
 </div></div>
 
@@ -717,7 +720,7 @@ function renderHand(reveal = false) {
     el.bet.innerHTML = s.streetCommit > 0
       ? `<span class="chip" style="--cc:${chipColor(s.streetCommit)}"></span>${fmt(s.streetCommit)}` : '';
     // cards
-    const show = i === HERO || reveal && !s.folded && !s.out && h.result?.showdown;
+    const show = i === HERO || (replayMode && !s.folded && !s.out) || reveal && !s.folded && !s.out && h.result?.showdown;
     const cardsEl = el.cards;
     const key = s.out || s.folded && i !== HERO ? '' : s.hole ? (show ? s.hole.join(',') : 'back') : '';
     if (cardsEl.dataset.key !== key) {
@@ -1065,6 +1068,8 @@ async function playHand() {
   // the replay record: everything the scorecard needs to reopen this hand
   matchHands[t.handIndex + 1] = {
     n: t.handIndex + 1, sb: levelOf(t).sb, bb: h.bb,
+    seed: h.seedHex, button: h.button, ante: h.ante, sbAmt: h.sb,
+    names: h.seats.map((x) => x.name), startStacks: h.seats.map((x) => x.startStack),
     holes: h.seats.map((x) => x.hole ? x.hole.map(cardName) : null),
     board: h.board.map(cardName), showdown: r.showdown,
     winners: r.winners.map((w) => ({ seat: w.seat, amount: w.amount })),
@@ -1459,9 +1464,70 @@ const tintAct = (word, ev) => `<b style="color:${ACT_COL[ev]}">${word}</b>`;
 const tintCards = (arr) => arr.map((c) =>
   `<b style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</b>`).join(' ');
 let replayText = '';
+let replayMode = false, replayAbort = false, replayN = 0;
+async function tableReplay(n) {
+  const rec = matchHands[n];
+  if (!rec || !rec.seed || running || replayMode) return;
+  replayMode = true; replayAbort = false;
+  $('#m-replay').classList.remove('open');
+  $('#m-trophy').classList.remove('open');
+  clearActions(); clearFx();
+  // the same seed deals the same cards: the engine replays its own history
+  h = newHand({
+    seats: rec.names.map((name, i) => ({ name, stack: rec.startStacks[i] })),
+    button: rec.button, sb: rec.sbAmt, bb: rec.bb, ante: rec.ante,
+    seedHex: rec.seed, limit: true,
+  });
+  boardShown = 0; displayOffset = {}; potOverride = null;
+  document.querySelectorAll('.handbadge').forEach((b) => b.remove());
+  $('#verdict').innerHTML = '';
+  $('#board').innerHTML = '';
+  status(`⏪ replaying hand #${n} — both hands face up · click the table to skip`);
+  renderHand();
+  const skip = () => { replayAbort = true; };
+  $('#felt').addEventListener('click', skip);
+  await sleep(1000);
+  const grades = matchGrades.filter((g) => g.hand === n);
+  const used = new Set();
+  let streetName = 'preflop';
+  for (const e of rec.log) {
+    if (replayAbort) break;
+    if (e.ev === 'street') {
+      streetName = e.street;
+      await dealBoardTo(h.board.length);
+      await sleep(600);
+      continue;
+    }
+    if (e.ev === 'refund') continue;
+    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(e.ev)) continue;
+    if (e.seat === HERO) {
+      const g = grades.find((x, gi) => !used.has(gi) && x.street === streetName && used.add(gi));
+      if (g) status(`chart: ${g.mixStr.replace(/<[^>]+>/g, '')}${g.evLossBb != null && g.evLossBb >= 0.005 ? ` · this cost ${g.evLossBb.toFixed(2)}bb` : ''}`);
+    }
+    await sleep(750);
+    const a = (e.ev === 'bet' || e.ev === 'raise')
+      ? { seat: e.seat, action: e.ev, amount: e.amount }
+      : { seat: e.seat, action: e.ev };
+    try { act(h, a); } catch { break; }
+    renderHand();
+  }
+  $('#felt').removeEventListener('click', skip);
+  if (!replayAbort && h.phase === 'done') {
+    await dealBoardTo(h.board.length);
+    potOverride = h.result.pots.reduce((x, p) => x + p.amount, 0);
+    renderHand(true);
+    status(`hand #${n} over — ${rec.winners.map((w) => `${w.seat === HERO ? 'you win' : NAMES[w.seat] + ' wins'} ${fmt(w.amount)}`).join(' · ')}`);
+    await sleep(3000);
+  }
+  replayMode = false; potOverride = null;
+  status('');
+  $('#m-trophy').classList.add('open');
+  $('#m-replay').classList.add('open');
+}
 function openReplay(n) {
   const rec = matchHands[n];
   if (!rec) return;
+  replayN = n;
   $('#replay-title').childNodes[0].textContent = `Hand #${n} — blinds ${rec.sb}/${rec.bb} `;
   const txt = [];
   txt.push(`The Wardroom — heads-up fixed-limit hold'em, hand #${n}, blinds ${rec.sb}/${rec.bb}`);
@@ -1509,6 +1575,7 @@ function openReplay(n) {
   $('#replay-body').innerHTML = lines.map((l) => l.startsWith('<div') ? l : `<div>${l}</div>`).join('');
   $('#m-replay').classList.add('open');
 }
+$('#b-tablereplay').addEventListener('click', () => tableReplay(replayN));
 $('#b-copyhand').addEventListener('click', async (e) => {
   try {
     await navigator.clipboard.writeText(replayText);
