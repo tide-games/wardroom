@@ -1019,7 +1019,10 @@ async function playHand() {
           renderLeakChip();
           // rated play reveals nothing mid-match — the chart room settles up after
           if (!ratedMode) {
-            if (!hinted) sGrade(word);
+            // sound is feedback, not score: it plays even for coached
+            // decisions (stats still exclude them - matching a visible
+            // answer proves nothing, but hearing it land builds the habit)
+            sGrade(hinted ? gradeTag(pChosen, pMax)[1] : word);
             logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
           }
         }
