@@ -365,6 +365,7 @@ body{
   <h2 id="replay-title">Hand replay <span style="float:right;margin-right:34px;display:inline-flex;gap:8px">
     <button id="b-tablereplay" title="Watch this hand replayed on the table, both hands face up" style="font-size:13px;font-weight:700;background:#3a6d4a;color:#f3efe6;border:none;border-radius:6px;padding:4px 14px;cursor:pointer">▶ watch</button>
     <button id="b-copyhand" title="Copy this hand as text — paste it to any analyst, human or AI" style="font-size:13px;font-weight:700;background:var(--gold);color:#1c1812;border:none;border-radius:6px;padding:4px 14px;cursor:pointer">📋 copy</button>
+    <button id="b-copyjson" title="Copy as Libre Poker Hand JSON (librepoker.org schema) — replayable, verifiable, machine-readable" style="font-size:13px;font-weight:700;background:#274060;color:#f3efe6;border:none;border-radius:6px;padding:4px 14px;cursor:pointer">{ } json</button>
   </span></h2>
   <div id="replay-body" style="font-size:13px;line-height:1.75;max-height:60vh;overflow:auto;padding-right:14px;scrollbar-width:thin"></div>
 </div></div>
@@ -1001,8 +1002,10 @@ async function playHand() {
           const pMax = Math.max(...mix.probs);
           const hinted = hintedThisDecision;
           const [glyph, word] = hinted ? ['🔍', 'hinted'] : gradeTag(pChosen, pMax);
+          const mixNum = {};
           const mixStr = mix.acts.map((ac, i) => {
             const name = ac === 'k' ? (L.callAmount > 0 ? 'call' : 'check') : ac === 'b' ? (L.actions.includes('bet') ? 'bet' : 'raise') : 'fold';
+            mixNum[name] = +mix.probs[i].toFixed(4);
             const col = { fold: 'var(--danger)', check: '#3a9d54', call: '#3a9d54', bet: 'var(--gold)', raise: 'var(--gold)' }[name];
             return `<span style="color:${col};opacity:.85">${name}</span> ${(mix.probs[i] * 100).toFixed(0)}%`;
           }).join(' · ');
@@ -1014,7 +1017,7 @@ async function playHand() {
             const ci2 = ev ? ev.acts.indexOf(chosen) : -1;
             if (ci2 >= 0) evLossBb = (Math.max(...ev.evs) - ev.evs[ci2]) / h.bb;
           }
-          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, pChosen, pMax, hinted, evLossBb,
+          matchGrades.push({ hand: t.handIndex + 1, street: STREETS[h.street], action: a.action, glyph, word, mixStr, mix: mixNum, pChosen, pMax, hinted, evLossBb,
             hole: h.seats[HERO].hole.map(cardName).join(' '), flop: h.board.slice(0, 3).map(cardName).join(' ') });
           renderLeakChip();
           // rated play reveals nothing mid-match — the chart room settles up after
@@ -1638,6 +1641,61 @@ function openReplay(n) {
   $('#replay-body').innerHTML = lines.map((l) => l.startsWith('<div') ? l : `<div>${l}</div>`).join('');
   $('#m-replay').classList.add('open');
 }
+// the room speaks the standard: emit this hand as a Libre Poker Hand v0
+// document (libre-poker/schema) — replayable from its seed, annotations
+// carrying the leak meter's mixes and exact river EV losses, advisory only
+function buildHandJson(n) {
+  const rec = matchHands[n];
+  if (!rec || !rec.seed) return null;
+  const ascii = (c) => c[0] + ({ '♣': 'c', '♦': 'd', '♥': 'h', '♠': 's' })[c.slice(1)];
+  const actions = [];
+  for (const e of rec.log) {
+    if (e.ev === 'street') { actions.push({ street: e.street }); continue; }
+    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(e.ev)) continue;
+    const a = { seat: e.seat, act: e.ev };
+    if (e.ev === 'bet' || e.ev === 'raise') a.to = e.amount;
+    else if (e.ev === 'call' && e.amount != null) a.amount = e.amount;
+    actions.push(a);
+  }
+  const grades = matchGrades.filter((g) => g.hand === n);
+  const used = new Set();
+  const annotations = [];
+  let sn = 'preflop';
+  actions.forEach((a, idx) => {
+    if (a.street) { sn = a.street; return; }
+    if (a.seat !== HERO) return;
+    const g = grades.find((x, gi) => !used.has(gi) && x.street === sn && used.add(gi));
+    if (!g) return;
+    const an = { action: idx };
+    if (g.mix) an.mix = g.mix;
+    if (g.evLossBb != null) { an.evLossBb = +g.evLossBb.toFixed(4); an.exact = true; }
+    if (g.hinted) an.hinted = true;
+    if (an.mix || an.evLossBb != null) annotations.push(an);
+  });
+  const doc = {
+    '@context': 'https://librepoker.org/context.jsonld',
+    type: 'Hand', v: 0, variant: 'holdem-limit',
+    seed: rec.seed, sb: rec.sbAmt, bb: rec.bb, ante: rec.ante, button: rec.button,
+    seats: rec.names.map((name, i) => ({
+      name, startStack: rec.startStacks[i],
+      hole: rec.holes[i] ? rec.holes[i].map(ascii) : null,
+    })),
+    board: rec.board.map(ascii),
+    actions,
+    result: { showdown: rec.showdown, pot: rec.pot, winners: rec.winners },
+  };
+  if (annotations.length) doc.annotations = annotations;
+  return doc;
+}
+$('#b-copyjson').addEventListener('click', async (e) => {
+  const doc = buildHandJson(replayN);
+  if (!doc) { toastBad('this hand has no full record'); return; }
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(doc, null, 2));
+    e.target.textContent = '✓ copied';
+    setTimeout(() => { e.target.textContent = '{ } json'; }, 1400);
+  } catch { toastBad('clipboard blocked'); }
+});
 $('#b-tablereplay').addEventListener('click', () => tableReplay(replayN));
 $('#b-copyhand').addEventListener('click', async (e) => {
   try {
