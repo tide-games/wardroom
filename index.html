@@ -860,6 +860,13 @@ function heroTurn(L) {
   });
 }
 document.addEventListener('keydown', (e) => {
+  if (replayMode && replayCtl) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); replayCtl.back(); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); replayCtl.fwd(); return; }
+    if (e.key === ' ') { e.preventDefault(); replayCtl.toggle(); return; }
+    if (e.key === 'Escape') { replayCtl.exit(); return; }
+    return;
+  }
   if (e.key === '4') {                       // toggle the trainer any time
     if (ratedMode) { toastBad('no assistance in rated play'); return; }
     const b = $('#b-coach');
@@ -1229,7 +1236,8 @@ async function playHand() {
   logLine(`<span class="seed">seed revealed: ${seed} (hash it — it matches the commitment above)</span>`);
   const { busted } = absorbHand(t, h);
   for (const b of busted) {
-    const place = 6 - t.eliminated.indexOf(b);
+    const participants = t.stacks.filter((x) => x > 0).length + t.eliminated.length;
+    const place = participants - t.eliminated.indexOf(b);
     if (b === HERO) {
       $('#felt').style.filter = 'saturate(.6)';
       sBust();
@@ -1464,63 +1472,100 @@ const tintAct = (word, ev) => `<b style="color:${ACT_COL[ev]}">${word}</b>`;
 const tintCards = (arr) => arr.map((c) =>
   `<b style="color:${c.includes('♦') || c.includes('♥') ? 'var(--red)' : 'inherit'}">${c}</b>`).join(' ');
 let replayText = '';
-let replayMode = false, replayAbort = false, replayN = 0;
+let replayMode = false, replayN = 0, replayCtl = null;
 async function tableReplay(n) {
   const rec = matchHands[n];
   if (!rec || !rec.seed || running || replayMode) return;
-  replayMode = true; replayAbort = false;
+  replayMode = true;
   $('#m-replay').classList.remove('open');
   $('#m-trophy').classList.remove('open');
-  clearActions(); clearFx();
-  // the same seed deals the same cards: the engine replays its own history
-  h = newHand({
+  clearFx();
+  // narration prepass: one step per recorded event
+  const grades = matchGrades.filter((g) => g.hand === n);
+  const used = new Set();
+  const bCount = { flop: 3, turn: 4, river: 5 };
+  let sn = 'preflop';
+  const steps = [];
+  for (const e of rec.log) {
+    if (e.ev === 'street') {
+      sn = e.street;
+      steps.push({ e, text: `${e.street.toUpperCase()}  ${rec.board.slice(0, bCount[e.street]).join(' ')}` });
+      continue;
+    }
+    if (e.ev === 'refund') { steps.push({ e, text: `${e.seat === HERO ? 'You take' : NAMES[e.seat] + ' takes'} ${fmt(e.amount)} back` }); continue; }
+    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(e.ev)) continue;
+    const me = e.seat === HERO;
+    const verb = { fold: me ? 'fold' : 'folds', check: me ? 'check' : 'checks', call: me ? 'call' : 'calls', bet: me ? 'bet' : 'bets', raise: me ? 'raise to' : 'raises to' }[e.ev];
+    let text = `${me ? 'You' : NAMES[e.seat]} ${verb}${e.amount && e.ev !== 'fold' && e.ev !== 'check' ? ' ' + fmt(e.amount) : ''}`;
+    if (me) {
+      const g = grades.find((x, gi) => !used.has(gi) && x.street === sn && used.add(gi));
+      if (g) text += `  —  chart: ${g.mixStr.replace(/<[^>]+>/g, '')}${g.evLossBb != null && g.evLossBb >= 0.005 ? ` · this cost ${g.evLossBb.toFixed(2)}bb` : ''}`;
+    }
+    steps.push({ e, text });
+  }
+  const freshHand = () => newHand({
     seats: rec.names.map((name, i) => ({ name, stack: rec.startStacks[i] })),
     button: rec.button, sb: rec.sbAmt, bb: rec.bb, ante: rec.ante,
     seedHex: rec.seed, limit: true,
   });
-  boardShown = 0; displayOffset = {}; potOverride = null;
-  document.querySelectorAll('.handbadge').forEach((b) => b.remove());
-  $('#verdict').innerHTML = '';
-  $('#board').innerHTML = '';
-  status(`⏪ replaying hand #${n} — both hands face up · click the table to skip`);
-  renderHand();
-  const skip = () => { replayAbort = true; };
-  $('#felt').addEventListener('click', skip);
-  await sleep(1000);
-  const grades = matchGrades.filter((g) => g.hand === n);
-  const used = new Set();
-  let streetName = 'preflop';
-  for (const e of rec.log) {
-    if (replayAbort) break;
-    if (e.ev === 'street') {
-      streetName = e.street;
-      await dealBoardTo(h.board.length);
-      await sleep(600);
-      continue;
-    }
-    if (e.ev === 'refund') continue;
-    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(e.ev)) continue;
-    if (e.seat === HERO) {
-      const g = grades.find((x, gi) => !used.has(gi) && x.street === streetName && used.add(gi));
-      if (g) status(`chart: ${g.mixStr.replace(/<[^>]+>/g, '')}${g.evLossBb != null && g.evLossBb >= 0.005 ? ` · this cost ${g.evLossBb.toFixed(2)}bb` : ''}`);
-    }
-    await sleep(750);
-    const a = (e.ev === 'bet' || e.ev === 'raise')
-      ? { seat: e.seat, action: e.ev, amount: e.amount }
-      : { seat: e.seat, action: e.ev };
-    try { act(h, a); } catch { break; }
-    renderHand();
+  const applyE = (hh, e) => {
+    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(e.ev)) return;
+    const a = (e.ev === 'bet' || e.ev === 'raise') ? { seat: e.seat, action: e.ev, amount: e.amount } : { seat: e.seat, action: e.ev };
+    try { act(hh, a); } catch {}
+  };
+  let pos = 0, playing = true, alive = true;
+  const statusFor = () => {
+    const done = pos >= steps.length;
+    status(`⏪ hand #${n} · ${pos}/${steps.length}  ${pos ? steps[pos - 1].text : 'the deal'}${done && h.result ? `  ·  ${rec.winners.map((w) => `${w.seat === HERO ? 'you win' : NAMES[w.seat] + ' wins'} ${fmt(w.amount)}`).join(' · ')}` : ''}`);
+  };
+  const renderAt = () => {                    // full rebuild: powers stepping back
+    h = freshHand();
+    for (let i = 0; i < pos; i++) applyE(h, steps[i].e);
+    boardShown = h.board.length;
+    displayOffset = {}; potOverride = h.phase === 'done' ? h.result.pots.reduce((x, p) => x + p.amount, 0) : null;
+    document.querySelectorAll('.handbadge').forEach((b) => b.remove());
+    $('#verdict').innerHTML = '';
+    renderHand(h.phase === 'done');
+    statusFor();
+  };
+  const stepFwd = async () => {               // incremental: keeps the deal animation
+    if (pos >= steps.length) return;
+    applyE(h, steps[pos].e); pos++;
+    if (h.phase === 'done') potOverride = h.result.pots.reduce((x, p) => x + p.amount, 0);
+    if (h.board.length > boardShown) await dealBoardTo(h.board.length);
+    renderHand(h.phase === 'done');
+    statusFor();
+  };
+  const pause = () => { playing = false; const b = $('#rp-play'); if (b) b.textContent = '▶'; };
+  replayCtl = {
+    back: () => { pause(); if (pos > 0) { pos--; renderAt(); } },
+    fwd: () => { pause(); stepFwd(); },
+    toggle: () => { playing = !playing; const b = $('#rp-play'); if (b) b.textContent = playing ? '⏸' : '▶'; },
+    exit: () => { alive = false; },
+  };
+  clearActions();
+  const bar = document.createElement('div'); bar.className = 'grp';
+  const mk = (id, txt, title) => {
+    const b = document.createElement('button'); b.id = id; b.className = 'qbtn';
+    b.textContent = txt; b.title = title; b.style.fontSize = '16px'; b.style.padding = '6px 16px';
+    bar.appendChild(b); return b;
+  };
+  mk('rp-back', '◀', 'previous action (←)').addEventListener('click', () => replayCtl.back());
+  mk('rp-play', '⏸', 'play / pause (space)').addEventListener('click', () => replayCtl.toggle());
+  mk('rp-fwd', '▶', 'next action (→)').addEventListener('click', () => replayCtl.fwd());
+  mk('rp-exit', '✕ done', 'back to the scorecard (esc)').addEventListener('click', () => replayCtl.exit());
+  actionsEl.appendChild(bar);
+  renderAt();
+  await sleep(900);
+  while (alive) {
+    if (playing && pos < steps.length) {
+      await stepFwd();
+      if (pos >= steps.length) pause();
+      await sleep(steps[Math.min(pos, steps.length - 1)].e.ev === 'street' ? 950 : 800);
+    } else await sleep(120);
   }
-  $('#felt').removeEventListener('click', skip);
-  if (!replayAbort && h.phase === 'done') {
-    await dealBoardTo(h.board.length);
-    potOverride = h.result.pots.reduce((x, p) => x + p.amount, 0);
-    renderHand(true);
-    status(`hand #${n} over — ${rec.winners.map((w) => `${w.seat === HERO ? 'you win' : NAMES[w.seat] + ' wins'} ${fmt(w.amount)}`).join(' · ')}`);
-    await sleep(3000);
-  }
-  replayMode = false; potOverride = null;
-  status('');
+  clearActions(); status('');
+  replayMode = false; replayCtl = null; potOverride = null;
   $('#m-trophy').classList.add('open');
   $('#m-replay').classList.add('open');
 }
