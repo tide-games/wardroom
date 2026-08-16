@@ -406,6 +406,14 @@ function blip(freq, dur = .06, gain = .05, type = 'triangle') {
   } catch { /* no audio */ }
 }
 function chord(freqs, dur, gain) { for (const f of freqs) blip(f, dur, gain); }
+// the grade speaks: a rising third for on-book, one soft note for a fine
+// mix, a low murmur for an inaccuracy, a falling pair for off the chart
+function sGrade(word) {
+  if (word === 'book') seq([659, 988], 85, .11, .038, 'sine');
+  else if (word === 'mix') blip(659, .09, .028, 'sine');
+  else if (word === 'inaccuracy') blip(233, .11, .03, 'sine');
+  else seq([220, 165], 110, .12, .034, 'sine');
+}
 function seq(notes, gapMs, dur, gain, type = 'sine') {
   notes.forEach((f, i) => setTimeout(() => blip(f, dur, gain, type), i * gapMs));
 }
@@ -1010,7 +1018,10 @@ async function playHand() {
             hole: h.seats[HERO].hole.map(cardName).join(' '), flop: h.board.slice(0, 3).map(cardName).join(' ') });
           renderLeakChip();
           // rated play reveals nothing mid-match — the chart room settles up after
-          if (!ratedMode) logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
+          if (!ratedMode) {
+            if (!hinted) sGrade(word);
+            logLine(`<span style="color:#7d746a">${glyph} chart: ${mixStr}${evLossBb != null && evLossBb >= 0.005 ? ` · −${evLossBb.toFixed(2)}bb` : ''}</span>`);
+          }
         }
       }
     } else {
