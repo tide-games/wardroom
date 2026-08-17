@@ -12,8 +12,9 @@ if (EQ) {
 }
 
 const ITERS = Number(process.argv[2] || 1_000_000);
-const STATE_FILE = EQ ? 'train-state-eq.json' : (process.argv[3] || 'train-state.json');
-const OUT_FILE = EQ ? 'strategy-eq.json' : 'strategy-hulimit.json';
+// TRAIN_STATE/TRAIN_OUT let parallel workers keep separate files
+const STATE_FILE = process.env.TRAIN_STATE || (EQ ? 'train-state-eq.json' : (process.argv[3] || 'train-state.json'));
+const OUT_FILE = process.env.TRAIN_OUT || (EQ ? 'strategy-eq.json' : 'strategy-hulimit.json');
 
 const regret = new Map();
 const strategySum = new Map();
