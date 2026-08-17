@@ -109,6 +109,6 @@ export function eqBucket(street, hole, board) {
   let lo = 0, hi = edges.length;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (edges[mid] <= v) lo = mid + 1; else hi = mid; }
   b = lo;
-  if (cache.size < 25_000_000) cache.set(key, b);
+  if (cache.size < 16_000_000) cache.set(key, b);   // V8's Map ceiling is ~16.7M — the fence goes BEFORE the cliff
   return b;
 }
