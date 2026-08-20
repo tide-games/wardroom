@@ -14,7 +14,7 @@ function deal(rng) {
 let seed = 42;
 const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x80000000; };
 
-let terminals = 0, maxActs = 0, sumU = 0;
+let terminals = 0, maxActs = 0, sumU = 0, saw3bet = false;
 for (let n = 0; n < 50000; n++) {
   const { holes, board } = deal(rng);
   let st = HUNL.initial(), steps = 0;
@@ -27,6 +27,8 @@ for (let n = 0; n < 50000; n++) {
     if (st.contrib[0] < 1 || st.contrib[1] < 2) throw new Error('undercommit');
   }
   terminals++;
+  const aggr = (st.rounds[0].match(/[hpa]/g) || []).length;
+  if (aggr >= 3) saw3bet = true;         // open + 3-bet + 4-bet in one preflop
   maxActs = Math.max(maxActs, steps);
   const u = HUNL.utility(st, holes, board);
   if (Math.abs(u) > HUNL.STACK) throw new Error('utility out of range: ' + u);
@@ -34,6 +36,8 @@ for (let n = 0; n < 50000; n++) {
   sumU += u;
 }
 console.log(`fuzz: ${terminals.toLocaleString()} hands terminal · max ${maxActs} actions · mean button EV ${(sumU / terminals).toFixed(3)} (random-vs-random ≈ 0)`);
+if (!saw3bet) throw new Error('no preflop 3-bet ever occurred — the war is still amputated');
+console.log('preflop 3-bet+ lines exist: ok');
 
 // determinism: same sequence twice = identical states
 {
