@@ -4,6 +4,7 @@
 # less and learns more per iteration.
 #   ./train-parallel.sh [workers=6] [iters-per-burst=250000] [bursts=4] [state] [table]
 cd "$(dirname "$0")"
+export NODE_OPTIONS=--max-old-space-size=16384   # NL states are heavy; merges hold three
 W=${1:-6}; K=${2:-250000}; R=${3:-4}
 BASE=${4:-train-state-eq.json}
 OUT=${5:-strategy-eq.json}
